@@ -1,0 +1,6 @@
+resources:
+  dashboards:
+    gold_task2_product_performance:
+      display_name: "Gold Task 2 - Product Performance"
+      warehouse_id: 8c1e5cea13573ca3
+      file_path: ../src/dashboards/gold_task2_product_performance.lvdash.json

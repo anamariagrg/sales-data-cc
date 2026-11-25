@@ -1,0 +1,2457 @@
+{
+  "datasets": [
+    {
+      "name": "city_sales",
+      "displayName": "Relevant Sales by City (filter-driven)",
+      "queryLines": [
+        "WITH relevant_rollup AS (\n",
+        "  SELECT\n",
+        "    city,\n",
+        "    SUM(total_pieces_sold) AS total_pieces_sold,\n",
+        "    SUM(gross_sales_volume) AS gross_sales_volume,\n",
+        "    SUM(total_effective_sales_volume) AS total_effective_sales_volume,\n",
+        "    MAX(max_discount) AS city_max_discount\n",
+        "  FROM\n",
+        "    sales_data_cc.gold.task1_sales_rollup\n",
+        "  WHERE\n",
+        "    (\n",
+        "      :product_section IS NULL\n",
+        "      OR array_contains(:product_section, section)\n",
+        "    )\n",
+        "    AND (\n",
+        "      :product_season IS NULL\n",
+        "      OR array_contains(:product_season, season)\n",
+        "    )\n",
+        "    AND (\n",
+        "      :sale_month IS NULL\n",
+        "      OR array_contains(:sale_month, sale_month)\n",
+        "    )\n",
+        "  GROUP BY\n",
+        "    city\n",
+        "),\n",
+        "city_product_counts AS (\n",
+        "  -- Exact per-city distinct products cannot be re-combined from the rollup,\n",
+        "  -- so this one column still reads the sale-grain fact view.\n",
+        "  SELECT\n",
+        "    city,\n",
+        "    COUNT(DISTINCT product_id) AS relevant_product_count\n",
+        "  FROM\n",
+        "    sales_data_cc.gold.task1_sales_facts\n",
+        "  WHERE\n",
+        "    (\n",
+        "      :product_section IS NULL\n",
+        "      OR array_contains(:product_section, section)\n",
+        "    )\n",
+        "    AND (\n",
+        "      :product_season IS NULL\n",
+        "      OR array_contains(:product_season, season)\n",
+        "    )\n",
+        "    AND (\n",
+        "      :sale_month IS NULL\n",
+        "      OR array_contains(:sale_month, sale_month)\n",
+        "    )\n",
+        "  GROUP BY\n",
+        "    city\n",
+        ")\n",
+        "SELECT\n",
+        "  r.city,\n",
+        "  CAST(r.total_effective_sales_volume AS DOUBLE) AS total_effective_sales_volume,\n",
+        "  r.total_pieces_sold,\n",
+        "  c.relevant_product_count,\n",
+        "  CAST(r.total_effective_sales_volume AS DOUBLE) AS actual_discount_sales_volume,\n",
+        "  CAST(r.gross_sales_volume * (1 - r.city_max_discount) AS DOUBLE) AS max_discount_sales_volume,\n",
+        "  r.city_max_discount,\n",
+        "  CAST(\n",
+        "    r.gross_sales_volume * (1 - r.city_max_discount) - r.total_effective_sales_volume AS DOUBLE\n",
+        "  ) AS volume_difference\n",
+        "FROM\n",
+        "  relevant_rollup r\n",
+        "  LEFT JOIN city_product_counts c\n",
+        "    ON c.city = r.city\n",
+        "ORDER BY\n",
+        "  r.city"
+      ],
+      "parameters": [
+        {
+          "displayName": "Product section",
+          "keyword": "product_section",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "WOMAN"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "Product season",
+          "keyword": "product_season",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "WINTER"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "Sale month",
+          "keyword": "sale_month",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "2025-01"
+                },
+                {
+                  "value": "2025-02"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "catalog": "sales_data_cc",
+      "schema": "sales_data"
+    },
+    {
+      "name": "monthly_rate",
+      "displayName": "Findings - Pieces per Day by Month",
+      "queryLines": [
+        "SELECT\n",
+        "  DATE_TRUNC('MONTH', s.sale_ts) AS sale_month,\n",
+        "  COUNT(DISTINCT DATE(s.sale_ts)) AS days_with_data,\n",
+        "  SUM(s.pieces_sold) AS pieces_sold,\n",
+        "  ROUND(SUM(s.pieces_sold) / COUNT(DISTINCT DATE(s.sale_ts)), 0) AS pieces_per_day\n",
+        "FROM\n",
+        "  sales_data_cc.silver.sales s\n",
+        "    JOIN sales_data_cc.silver.products p\n",
+        "      ON s.product_id = p.product_id\n",
+        "WHERE\n",
+        "  (\n",
+        "    :product_section IS NULL\n",
+        "    OR array_contains(:product_section, p.section)\n",
+        "  )\n",
+        "  AND (\n",
+        "    :product_season IS NULL\n",
+        "    OR array_contains(:product_season, p.season)\n",
+        "  )\n",
+        "  AND (\n",
+        "    :sale_month IS NULL\n",
+        "    OR array_contains(:sale_month, s.sale_month)\n",
+        "  )\n",
+        "GROUP BY\n",
+        "  1\n",
+        "ORDER BY\n",
+        "  1"
+      ],
+      "parameters": [
+        {
+          "displayName": "Product section",
+          "keyword": "product_section",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "WOMAN"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "Product season",
+          "keyword": "product_season",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "WINTER"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "Sale month",
+          "keyword": "sale_month",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "2025-01"
+                },
+                {
+                  "value": "2025-02"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "weekday_pieces",
+      "displayName": "Findings - Pieces by Weekday",
+      "queryLines": [
+        "SELECT\n",
+        "  DATE_FORMAT(s.sale_ts, 'EEEE') AS day_of_week,\n",
+        "  SUM(s.pieces_sold) AS pieces_sold\n",
+        "FROM\n",
+        "  sales_data_cc.silver.sales s\n",
+        "    JOIN sales_data_cc.silver.products p\n",
+        "      ON s.product_id = p.product_id\n",
+        "WHERE\n",
+        "  (\n",
+        "    :product_section IS NULL\n",
+        "    OR array_contains(:product_section, p.section)\n",
+        "  )\n",
+        "  AND (\n",
+        "    :product_season IS NULL\n",
+        "    OR array_contains(:product_season, p.season)\n",
+        "  )\n",
+        "  AND (\n",
+        "    :sale_month IS NULL\n",
+        "    OR array_contains(:sale_month, s.sale_month)\n",
+        "  )\n",
+        "GROUP BY\n",
+        "  1"
+      ],
+      "parameters": [
+        {
+          "displayName": "Product section",
+          "keyword": "product_section",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "WOMAN"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "Product season",
+          "keyword": "product_season",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "WINTER"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "Sale month",
+          "keyword": "sale_month",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "2025-01"
+                },
+                {
+                  "value": "2025-02"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "discount_elasticity",
+      "displayName": "Findings - Avg Pieces by Discount Decile",
+      "queryLines": [
+        "SELECT\n",
+        "  ROUND(FLOOR(f.discount * 10) / 10, 1) AS discount_decile,\n",
+        "  COUNT(*) AS sale_rows,\n",
+        "  ROUND(AVG(f.pieces_sold), 2) AS avg_pieces_sold\n",
+        "FROM\n",
+        "  sales_data_cc.gold.task1_sales_facts f\n",
+        "WHERE\n",
+        "  (\n",
+        "    :product_section IS NULL\n",
+        "    OR array_contains(:product_section, f.section)\n",
+        "  )\n",
+        "  AND (\n",
+        "    :product_season IS NULL\n",
+        "    OR array_contains(:product_season, f.season)\n",
+        "  )\n",
+        "  AND (\n",
+        "    :sale_month IS NULL\n",
+        "    OR array_contains(:sale_month, f.sale_month)\n",
+        "  )\n",
+        "GROUP BY\n",
+        "  1\n",
+        "ORDER BY\n",
+        "  1"
+      ],
+      "parameters": [
+        {
+          "displayName": "Product section",
+          "keyword": "product_section",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "WOMAN"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "Product season",
+          "keyword": "product_season",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "WINTER"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "Sale month",
+          "keyword": "sale_month",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "2025-01"
+                },
+                {
+                  "value": "2025-02"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "pieces_histogram",
+      "displayName": "Findings - pieces_sold Distribution",
+      "queryLines": [
+        "SELECT\n",
+        "  FLOOR(s.pieces_sold / 10) * 10 AS pieces_bucket,\n",
+        "  COUNT(*) AS sale_rows\n",
+        "FROM\n",
+        "  sales_data_cc.silver.sales s\n",
+        "    JOIN sales_data_cc.silver.products p\n",
+        "      ON s.product_id = p.product_id\n",
+        "WHERE\n",
+        "  (\n",
+        "    :product_section IS NULL\n",
+        "    OR array_contains(:product_section, p.section)\n",
+        "  )\n",
+        "  AND (\n",
+        "    :product_season IS NULL\n",
+        "    OR array_contains(:product_season, p.season)\n",
+        "  )\n",
+        "  AND (\n",
+        "    :sale_month IS NULL\n",
+        "    OR array_contains(:sale_month, s.sale_month)\n",
+        "  )\n",
+        "GROUP BY\n",
+        "  1\n",
+        "ORDER BY\n",
+        "  1"
+      ],
+      "parameters": [
+        {
+          "displayName": "Product section",
+          "keyword": "product_section",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "WOMAN"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "Product season",
+          "keyword": "product_season",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "WINTER"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "Sale month",
+          "keyword": "sale_month",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "2025-01"
+                },
+                {
+                  "value": "2025-02"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "discount_histogram",
+      "displayName": "Findings - Discount Value Distribution",
+      "queryLines": [
+        "WITH sale_keys AS (\n",
+        "  SELECT DISTINCT\n",
+        "    product_id,\n",
+        "    city,\n",
+        "    sale_month\n",
+        "  FROM\n",
+        "    sales_data_cc.silver.sales\n",
+        "),\n",
+        "labelled AS (\n",
+        "  SELECT\n",
+        "    CASE\n",
+        "      WHEN d.discount = 0 THEN 0.0\n",
+        "      ELSE ROUND(FLOOR(d.discount * 20) / 20, 2)\n",
+        "    END AS discount_value,\n",
+        "    CASE\n",
+        "      WHEN d.discount = 0 THEN '0% (exact)'\n",
+        "      ELSE\n",
+        "        CONCAT(\n",
+        "          LPAD(CAST(LEAST(CAST(FLOOR(d.discount * 20) AS INT), 3) * 5 AS STRING), 2, '0'),\n",
+        "          '–',\n",
+        "          LPAD(CAST(LEAST(CAST(FLOOR(d.discount * 20) AS INT), 3) * 5 + 5 AS STRING), 2, '0'),\n",
+        "          '%'\n",
+        "        )\n",
+        "    END AS discount_range,\n",
+        "    CONCAT(d.product_id, '|', d.city) AS product_city\n",
+        "  FROM\n",
+        "    sales_data_cc.silver.discounts d\n",
+        "      JOIN sales_data_cc.silver.products p\n",
+        "        ON d.product_id = p.product_id\n",
+        "      LEFT JOIN sale_keys k\n",
+        "        ON k.product_id = d.product_id\n",
+        "        AND k.city = d.city\n",
+        "  WHERE\n",
+        "    (\n",
+        "      :product_section IS NULL\n",
+        "      OR array_contains(:product_section, p.section)\n",
+        "    )\n",
+        "    AND (\n",
+        "      :product_season IS NULL\n",
+        "      OR array_contains(:product_season, p.season)\n",
+        "    )\n",
+        "    AND (\n",
+        "      :sale_month IS NULL\n",
+        "      OR array_contains(:sale_month, k.sale_month)\n",
+        "    )\n",
+        ")\n",
+        "SELECT\n",
+        "  discount_value,\n",
+        "  discount_range,\n",
+        "  COUNT(DISTINCT product_city) AS row_count\n",
+        "FROM\n",
+        "  labelled\n",
+        "GROUP BY\n",
+        "  1,\n",
+        "  2\n",
+        "ORDER BY\n",
+        "  1,\n",
+        "  2"
+      ],
+      "parameters": [
+        {
+          "displayName": "Product section",
+          "keyword": "product_section",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "WOMAN"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "Product season",
+          "keyword": "product_season",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "WINTER"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "Sale month",
+          "keyword": "sale_month",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "2025-01"
+                },
+                {
+                  "value": "2025-02"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "discount_corr",
+      "displayName": "Findings - Discount vs Quantity Correlation",
+      "queryLines": [
+        "SELECT\n",
+        "  ROUND(CORR(f.discount, f.pieces_sold), 4) AS discount_pieces_corr\n",
+        "FROM\n",
+        "  sales_data_cc.gold.task1_sales_facts f\n",
+        "WHERE\n",
+        "  (\n",
+        "    :product_section IS NULL\n",
+        "    OR array_contains(:product_section, f.section)\n",
+        "  )\n",
+        "  AND (\n",
+        "    :product_season IS NULL\n",
+        "    OR array_contains(:product_season, f.season)\n",
+        "  )\n",
+        "  AND (\n",
+        "    :sale_month IS NULL\n",
+        "    OR array_contains(:sale_month, f.sale_month)\n",
+        "  )"
+      ],
+      "parameters": [
+        {
+          "displayName": "Product section",
+          "keyword": "product_section",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "WOMAN"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "Product season",
+          "keyword": "product_season",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "WINTER"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "displayName": "Sale month",
+          "keyword": "sale_month",
+          "dataType": "STRING",
+          "complexType": "MULTI",
+          "defaultSelection": {
+            "values": {
+              "dataType": "STRING",
+              "values": [
+                {
+                  "value": "2025-01"
+                },
+                {
+                  "value": "2025-02"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "season_options",
+      "displayName": "Filter options - product season",
+      "config": {
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count",
+            "expr": "COUNT(*)",
+            "name": "count"
+          }
+        ],
+        "source": "SELECT `season` FROM sales_data_cc.silver.products GROUP BY `season` ORDER BY `season`",
+        "version": "1.1"
+      }
+    },
+    {
+      "name": "section_options",
+      "displayName": "Filter options - product section",
+      "config": {
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count",
+            "expr": "COUNT(*)",
+            "name": "count"
+          }
+        ],
+        "source": "SELECT `section` FROM sales_data_cc.silver.products GROUP BY `section` ORDER BY `section`",
+        "version": "1.1"
+      }
+    },
+    {
+      "name": "month_options",
+      "displayName": "Filter options - sale month",
+      "config": {
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count",
+            "expr": "COUNT(*)",
+            "name": "count"
+          }
+        ],
+        "source": "SELECT `sale_month` FROM sales_data_cc.silver.sales GROUP BY `sale_month` ORDER BY `sale_month`",
+        "version": "1.1"
+      }
+    }
+  ],
+  "pages": [
+    {
+      "name": "city_sales_page",
+      "displayName": "City Sales & Discount Impact",
+      "layout": [
+        {
+          "widget": {
+            "name": "counter_total_pieces",
+            "queries": [
+              {
+                "name": "main",
+                "query": {
+                  "datasetName": "city_sales",
+                  "fields": [
+                    {
+                      "name": "total_pieces",
+                      "expression": "SUM(`total_pieces_sold`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main"
+              },
+              "encodings": {
+                "value": {
+                  "displayName": "Pieces sold (10 cities)",
+                  "fieldName": "total_pieces",
+                  "format": {
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Total pieces sold"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 5,
+            "width": 4,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "counter_total_volume",
+            "queries": [
+              {
+                "name": "main",
+                "query": {
+                  "datasetName": "city_sales",
+                  "fields": [
+                    {
+                      "name": "total_volume",
+                      "expression": "SUM(`total_effective_sales_volume`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main"
+              },
+              "encodings": {
+                "value": {
+                  "displayName": "Effective volume",
+                  "fieldName": "total_volume",
+                  "format": {
+                    "abbreviation": "compact",
+                    "currencyCode": "USD",
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-currency"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Total effective sales volume"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 5,
+            "width": 4,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "counter_volume_delta",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "city_sales",
+                  "fields": [
+                    {
+                      "name": "sum(volume_difference)",
+                      "expression": "SUM(`volume_difference`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "value": {
+                  "displayName": "Effective volume change",
+                  "fieldName": "sum(volume_difference)",
+                  "format": {
+                    "abbreviation": "compact",
+                    "currencyCode": "USD",
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-currency"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Volume change if every sale had the city max discount"
+                }
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 5,
+            "width": 4,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "volume_by_city",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "city_sales",
+                  "fields": [
+                    {
+                      "name": "city",
+                      "expression": "`city`"
+                    },
+                    {
+                      "name": "sum(total_effective_sales_volume)",
+                      "expression": "SUM(`total_effective_sales_volume`)"
+                    }
+                  ],
+                  "disaggregated": false,
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "SUM(`total_effective_sales_volume`)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "label": {
+                  "show": false
+                },
+                "x": {
+                  "displayName": "City",
+                  "fieldName": "city",
+                  "scale": {
+                    "categorySize": {
+                      "number": 10,
+                      "type": "number-of-categories"
+                    },
+                    "sort": {
+                      "by": "measure-reversed",
+                      "measure": {
+                        "fieldName": "sum(total_effective_sales_volume)"
+                      }
+                    },
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Effective sales volume",
+                  "fieldName": "sum(total_effective_sales_volume)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Effective sales volume by city"
+                }
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 8,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "actual_vs_max",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "city_sales",
+                  "fields": [
+                    {
+                      "name": "city",
+                      "expression": "`city`"
+                    },
+                    {
+                      "name": "sum(actual_discount_sales_volume)",
+                      "expression": "SUM(`actual_discount_sales_volume`)"
+                    },
+                    {
+                      "name": "sum(max_discount_sales_volume)",
+                      "expression": "SUM(`max_discount_sales_volume`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "x": {
+                  "displayName": "City",
+                  "fieldName": "city",
+                  "scale": {
+                    "categorySize": {
+                      "number": 10,
+                      "type": "number-of-categories"
+                    },
+                    "sort": {
+                      "by": "y-reversed"
+                    },
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "Actual discounts",
+                      "fieldName": "sum(actual_discount_sales_volume)"
+                    },
+                    {
+                      "displayName": "All sales at max discount",
+                      "fieldName": "sum(max_discount_sales_volume)"
+                    }
+                  ],
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Actual discounts vs every sale at the city max discount"
+                }
+              },
+              "mark": {
+                "layout": "group"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 8,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "city_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "city_sales",
+                  "fields": [
+                    {
+                      "name": "city",
+                      "expression": "`city`"
+                    },
+                    {
+                      "name": "total_effective_sales_volume",
+                      "expression": "`total_effective_sales_volume`"
+                    },
+                    {
+                      "name": "total_pieces_sold",
+                      "expression": "`total_pieces_sold`"
+                    },
+                    {
+                      "name": "relevant_product_count",
+                      "expression": "`relevant_product_count`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "displayName": "City",
+                    "fieldName": "city"
+                  },
+                  {
+                    "displayName": "Effective sales volume",
+                    "fieldName": "total_effective_sales_volume",
+                    "format": {
+                      "abbreviation": "none",
+                      "currencyCode": "USD",
+                      "decimalPlaces": {
+                        "places": 2,
+                        "type": "exact"
+                      },
+                      "hideGroupSeparator": true,
+                      "significantFigures": {
+                        "type": "all"
+                      },
+                      "type": "number-currency"
+                    }
+                  },
+                  {
+                    "displayName": "Pieces sold",
+                    "fieldName": "total_pieces_sold"
+                  },
+                  {
+                    "displayName": "Products sold",
+                    "fieldName": "relevant_product_count"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "City detail"
+                }
+              },
+              "version": 2,
+              "widgetType": "table"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 14,
+            "width": 12,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "scenario_guide",
+            "spec": {
+              "encodings": {
+                "text": {
+                  "fields": [],
+                  "lines": [
+                    "# Filtering this page — defaults reproduce Task 1's winter scope\n",
+                    "\n",
+                    "Every widget on this page reacts to the **Product section**, **Product season** and **Sale month** filters in the filter sidebar. The filters open on **WOMAN / WINTER / January–February** — Task 1's winter scope (the data has no December).\n",
+                    "\n",
+                    "* **Scenario 1 — winter by product season:** Product section = WOMAN, Product season = WINTER, Sale month = all months\n",
+                    "* **Scenario 2 — winter by sale month:** Product section = WOMAN, Sale month = 2025-01 and 2025-02 (december is missing from the data), Product season = all seasons\n",
+                    "* **Scenario 3 — combined: winter by product season:** Product section = WOMAN, Product season = WINTER and **winter by sale month:** Sale month = 2025-01 and 2025-02 (december is missing from the data)\n",
+                    "\n",
+                    "To widen a filter back to everything, select every option in it. Task 1b always recomputes each **city max discount within the current selection**, so the actual-vs-max comparison matches exactly what you have filtered to. The Key Findings page follows the same filters."
+                  ]
+                }
+              },
+              "version": 1,
+              "verticalAlign": "top",
+              "widgetType": "text"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 5
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "findings_page",
+      "displayName": "Key Findings - Data Patterns",
+      "layout": [
+        {
+          "widget": {
+            "name": "counter_pieces_per_day",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "monthly_rate",
+                  "fields": [
+                    {
+                      "name": "avg(pieces_per_day)",
+                      "expression": "AVG(`pieces_per_day`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "value": {
+                  "displayName": "Avg pieces per day",
+                  "fieldName": "avg(pieces_per_day)",
+                  "format": {
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Pieces sold per day — stable across months"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 17,
+            "width": 4,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "counter_discount_corr",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "discount_corr",
+                  "fields": [
+                    {
+                      "name": "avg(discount_pieces_corr)",
+                      "expression": "AVG(`discount_pieces_corr`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "value": {
+                  "displayName": "Corr (discount size, pieces sold)",
+                  "fieldName": "avg(discount_pieces_corr)",
+                  "format": {
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "places": 4,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Discounts don't move demand — correlation ≈ 0"
+                }
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 17,
+            "width": 4,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "counter_max_discount_rows",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "discount_histogram",
+                  "fields": [
+                    {
+                      "name": "sum(row_count)",
+                      "expression": "SUM(`row_count`)"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`discount_value` IN (0.2)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "value": {
+                  "displayName": "Product-city discounts at 20%",
+                  "fieldName": "sum(row_count)",
+                  "format": {
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Discounts set at exactly 20% — the deepest possible discount"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 17,
+            "width": 4,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "bar_monthly_rate",
+            "queries": [
+              {
+                "name": "main",
+                "query": {
+                  "datasetName": "monthly_rate",
+                  "fields": [
+                    {
+                      "name": "sale_month",
+                      "expression": "`sale_month`"
+                    },
+                    {
+                      "name": "pieces_per_day",
+                      "expression": "AVG(`pieces_per_day`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main"
+              },
+              "encodings": {
+                "x": {
+                  "displayName": "Month",
+                  "fieldName": "sale_month",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "displayName": "Pieces per day",
+                  "fieldName": "pieces_per_day",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Pieces per day by month - flat rate, no seasonality"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 20,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "bar_weekday",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "weekday_pieces",
+                  "fields": [
+                    {
+                      "name": "day_of_week",
+                      "expression": "`day_of_week`"
+                    },
+                    {
+                      "name": "sum(pieces_sold)",
+                      "expression": "SUM(`pieces_sold`)"
+                    }
+                  ],
+                  "disaggregated": false,
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "SUM(`pieces_sold`)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "x": {
+                  "displayName": "Weekday",
+                  "fieldName": "day_of_week",
+                  "scale": {
+                    "sort": {
+                      "by": "measure-reversed",
+                      "measure": {
+                        "fieldName": "sum(pieces_sold)"
+                      }
+                    },
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Pieces sold",
+                  "fieldName": "sum(pieces_sold)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Pieces by weekday - only 2% spread, no weekend spike"
+                }
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 20,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "bar_discount_elasticity",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "discount_elasticity",
+                  "fields": [
+                    {
+                      "name": "discount_decile",
+                      "expression": "`discount_decile`"
+                    },
+                    {
+                      "name": "avg(avg_pieces_sold)",
+                      "expression": "AVG(`avg_pieces_sold`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "x": {
+                  "displayName": "Discount decile",
+                  "fieldName": "discount_decile",
+                  "scale": {
+                    "sort": {
+                      "by": "natural-order"
+                    },
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Avg pieces sold",
+                  "fieldName": "avg(avg_pieces_sold)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Average pieces sold per discount decile - discounts never move demand"
+                }
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 26,
+            "width": 4,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "bar_pieces_histogram",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "pieces_histogram",
+                  "fields": [
+                    {
+                      "name": "pieces_bucket",
+                      "expression": "`pieces_bucket`"
+                    },
+                    {
+                      "name": "sum(sale_rows)",
+                      "expression": "SUM(`sale_rows`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "x": {
+                  "displayName": "Pieces per sale (bucket)",
+                  "fieldName": "pieces_bucket",
+                  "scale": {
+                    "sort": {
+                      "by": "natural-order"
+                    },
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Sales rows",
+                  "fieldName": "sum(sale_rows)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Quantity per sale — larger purchases are more common"
+                }
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 26,
+            "width": 4,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "bar_discount_histogram",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "discount_histogram",
+                  "fields": [
+                    {
+                      "name": "discount_range",
+                      "expression": "`discount_range`"
+                    },
+                    {
+                      "name": "sum(row_count)",
+                      "expression": "SUM(`row_count`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "x": {
+                  "displayName": "Discount interval",
+                  "fieldName": "discount_range",
+                  "scale": {
+                    "sort": {
+                      "by": "natural-order"
+                    },
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Discount rows",
+                  "fieldName": "sum(row_count)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Discount values by 5% interval (0% separate, 20% included in 15–20%)"
+                }
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 26,
+            "width": 4,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "task_header",
+            "spec": {
+              "encodings": {
+                "text": {
+                  "fields": [],
+                  "lines": [
+                    "# Task 1 & 1b — what this page explains\n",
+                    "\n",
+                    "Every widget here follows the same **Product section**, **Product season** and **Sale month** filters as the City Sales page, so the findings below describe exactly the data behind your current selection — not the full year.\n",
+                    "\n",
+                    "* **Task 1** — effective sales volume per city: pieces sold × price × (1 − discount), for the selected scope.\n",
+                    "* **Task 1b** — the same sales re-priced at each city's maximum available discount; the difference is volume the deeper uniform discount would give away.\n",
+                    "\n",
+                    "The counters below summarize the current selection, and the charts underneath explain the patterns driving those numbers (flat monthly rate, no weekday seasonality, near-uniform discounts, no demand elasticity).\n"
+                  ]
+                }
+              },
+              "version": 1,
+              "verticalAlign": "top",
+              "widgetType": "text"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "counter_max_discount",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "city_sales",
+                  "fields": [
+                    {
+                      "name": "max(city_max_discount)",
+                      "expression": "MAX(`city_max_discount`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "value": {
+                  "displayName": "Max discount (selection)",
+                  "fieldName": "max(city_max_discount)",
+                  "format": {
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-percent"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Max discount in current selection"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 5,
+            "width": 4,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "counter_avg_volume_lost",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "city_sales",
+                  "fields": [
+                    {
+                      "name": "avg(volume_difference)",
+                      "expression": "AVG(`volume_difference`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "value": {
+                  "displayName": "Avg volume lost per city",
+                  "fieldName": "avg(volume_difference)",
+                  "format": {
+                    "abbreviation": "compact",
+                    "currencyCode": "USD",
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-currency"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Avg volume lost per city at max discount"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 5,
+            "width": 4,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "counter_avg_products",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "city_sales",
+                  "fields": [
+                    {
+                      "name": "avg(relevant_product_count)",
+                      "expression": "AVG(`relevant_product_count`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "value": {
+                  "displayName": "Avg products per city",
+                  "fieldName": "avg(relevant_product_count)",
+                  "format": {
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Avg distinct products sold per city"
+                }
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 5,
+            "width": 4,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "bar_volume_lost",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "city_sales",
+                  "fields": [
+                    {
+                      "name": "city",
+                      "expression": "`city`"
+                    },
+                    {
+                      "name": "sum(volume_difference)",
+                      "expression": "SUM(`volume_difference`)"
+                    }
+                  ],
+                  "disaggregated": false,
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "SUM(`volume_difference`)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "x": {
+                  "displayName": "City",
+                  "fieldName": "city",
+                  "scale": {
+                    "categorySize": {
+                      "number": 10,
+                      "type": "number-of-categories"
+                    },
+                    "sort": {
+                      "by": "measure-reversed",
+                      "measure": {
+                        "fieldName": "sum(volume_difference)"
+                      }
+                    },
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Volume lost at max discount",
+                  "fieldName": "sum(volume_difference)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Sales volume lost at the city max discount, by city"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 8,
+            "width": 12,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "patterns_header",
+            "spec": {
+              "encodings": {
+                "text": {
+                  "fields": [],
+                  "lines": [
+                    "## What drives the numbers — patterns in your current selection\n",
+                    "\n",
+                    "The counters and chart above summarize Task 1 & 1b for your selection. The widgets below profile the sales behind those numbers — how quantity is spread across months and weekdays, and how discounts behave — all recomputed under the same filters.\n",
+                    "\n",
+                    "Read them as the answer to: *is the volume stable, and do discounts actually change what customers buy?*\n"
+                  ]
+                }
+              },
+              "version": 1,
+              "verticalAlign": "top",
+              "widgetType": "text"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 14,
+            "width": 12,
+            "height": 3
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "global_filters",
+      "displayName": "Global Filters",
+      "layout": [
+        {
+          "widget": {
+            "name": "filter_product_section",
+            "queries": [
+              {
+                "name": "dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e69179d218a692f1ee30b9918671_section",
+                "query": {
+                  "datasetName": "section_options",
+                  "fields": [
+                    {
+                      "name": "section",
+                      "expression": "`section`"
+                    },
+                    {
+                      "name": "section_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae1690baaa7ffdde265884_product_section",
+                "query": {
+                  "datasetName": "city_sales",
+                  "parameters": [
+                    {
+                      "name": "product_section",
+                      "keyword": "product_section"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae1699a196d2ade0c0124b_product_section",
+                "query": {
+                  "datasetName": "monthly_rate",
+                  "parameters": [
+                    {
+                      "name": "product_section",
+                      "keyword": "product_section"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae1699a63ff293f12e5874_product_section",
+                "query": {
+                  "datasetName": "weekday_pieces",
+                  "parameters": [
+                    {
+                      "name": "product_section",
+                      "keyword": "product_section"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169a867a230491d88adc_product_section",
+                "query": {
+                  "datasetName": "discount_elasticity",
+                  "parameters": [
+                    {
+                      "name": "product_section",
+                      "keyword": "product_section"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169ab2d7fc04f14d1d3c_product_section",
+                "query": {
+                  "datasetName": "pieces_histogram",
+                  "parameters": [
+                    {
+                      "name": "product_section",
+                      "keyword": "product_section"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169bace618213265a9e0_product_section",
+                "query": {
+                  "datasetName": "discount_histogram",
+                  "parameters": [
+                    {
+                      "name": "product_section",
+                      "keyword": "product_section"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169ca6b247e0f0e4cedc_product_section",
+                "query": {
+                  "datasetName": "discount_corr",
+                  "parameters": [
+                    {
+                      "name": "product_section",
+                      "keyword": "product_section"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "section",
+                    "queryName": "dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e69179d218a692f1ee30b9918671_section"
+                  },
+                  {
+                    "parameterName": "product_section",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae1690baaa7ffdde265884_product_section"
+                  },
+                  {
+                    "parameterName": "product_section",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae1699a196d2ade0c0124b_product_section"
+                  },
+                  {
+                    "parameterName": "product_section",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae1699a63ff293f12e5874_product_section"
+                  },
+                  {
+                    "parameterName": "product_section",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169a867a230491d88adc_product_section"
+                  },
+                  {
+                    "parameterName": "product_section",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169ab2d7fc04f14d1d3c_product_section"
+                  },
+                  {
+                    "parameterName": "product_section",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169bace618213265a9e0_product_section"
+                  },
+                  {
+                    "parameterName": "product_section",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169ca6b247e0f0e4cedc_product_section"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Product section"
+                }
+              },
+              "version": 2,
+              "widgetType": "filter-multi-select"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_product_season",
+            "queries": [
+              {
+                "name": "dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e69179651736a228096bc6bc473e_season",
+                "query": {
+                  "datasetName": "season_options",
+                  "fields": [
+                    {
+                      "name": "season",
+                      "expression": "`season`"
+                    },
+                    {
+                      "name": "season_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae1690baaa7ffdde265884_product_season",
+                "query": {
+                  "datasetName": "city_sales",
+                  "parameters": [
+                    {
+                      "name": "product_season",
+                      "keyword": "product_season"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae1699a196d2ade0c0124b_product_season",
+                "query": {
+                  "datasetName": "monthly_rate",
+                  "parameters": [
+                    {
+                      "name": "product_season",
+                      "keyword": "product_season"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae1699a63ff293f12e5874_product_season",
+                "query": {
+                  "datasetName": "weekday_pieces",
+                  "parameters": [
+                    {
+                      "name": "product_season",
+                      "keyword": "product_season"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169a867a230491d88adc_product_season",
+                "query": {
+                  "datasetName": "discount_elasticity",
+                  "parameters": [
+                    {
+                      "name": "product_season",
+                      "keyword": "product_season"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169ab2d7fc04f14d1d3c_product_season",
+                "query": {
+                  "datasetName": "pieces_histogram",
+                  "parameters": [
+                    {
+                      "name": "product_season",
+                      "keyword": "product_season"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169bace618213265a9e0_product_season",
+                "query": {
+                  "datasetName": "discount_histogram",
+                  "parameters": [
+                    {
+                      "name": "product_season",
+                      "keyword": "product_season"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169ca6b247e0f0e4cedc_product_season",
+                "query": {
+                  "datasetName": "discount_corr",
+                  "parameters": [
+                    {
+                      "name": "product_season",
+                      "keyword": "product_season"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "season",
+                    "queryName": "dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e69179651736a228096bc6bc473e_season"
+                  },
+                  {
+                    "parameterName": "product_season",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae1690baaa7ffdde265884_product_season"
+                  },
+                  {
+                    "parameterName": "product_season",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae1699a196d2ade0c0124b_product_season"
+                  },
+                  {
+                    "parameterName": "product_season",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae1699a63ff293f12e5874_product_season"
+                  },
+                  {
+                    "parameterName": "product_season",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169a867a230491d88adc_product_season"
+                  },
+                  {
+                    "parameterName": "product_season",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169ab2d7fc04f14d1d3c_product_season"
+                  },
+                  {
+                    "parameterName": "product_season",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169bace618213265a9e0_product_season"
+                  },
+                  {
+                    "parameterName": "product_season",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169ca6b247e0f0e4cedc_product_season"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Product season"
+                }
+              },
+              "version": 2,
+              "widgetType": "filter-multi-select"
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 4,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_sale_month",
+            "queries": [
+              {
+                "name": "dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e6917a051d2589b0421668c27065_sale_month",
+                "query": {
+                  "datasetName": "month_options",
+                  "fields": [
+                    {
+                      "name": "sale_month",
+                      "expression": "`sale_month`"
+                    },
+                    {
+                      "name": "sale_month_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae1690baaa7ffdde265884_sale_month",
+                "query": {
+                  "datasetName": "city_sales",
+                  "parameters": [
+                    {
+                      "name": "sale_month",
+                      "keyword": "sale_month"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae1699a196d2ade0c0124b_sale_month",
+                "query": {
+                  "datasetName": "monthly_rate",
+                  "parameters": [
+                    {
+                      "name": "sale_month",
+                      "keyword": "sale_month"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae1699a63ff293f12e5874_sale_month",
+                "query": {
+                  "datasetName": "weekday_pieces",
+                  "parameters": [
+                    {
+                      "name": "sale_month",
+                      "keyword": "sale_month"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169a867a230491d88adc_sale_month",
+                "query": {
+                  "datasetName": "discount_elasticity",
+                  "parameters": [
+                    {
+                      "name": "sale_month",
+                      "keyword": "sale_month"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169ab2d7fc04f14d1d3c_sale_month",
+                "query": {
+                  "datasetName": "pieces_histogram",
+                  "parameters": [
+                    {
+                      "name": "sale_month",
+                      "keyword": "sale_month"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169bace618213265a9e0_sale_month",
+                "query": {
+                  "datasetName": "discount_histogram",
+                  "parameters": [
+                    {
+                      "name": "sale_month",
+                      "keyword": "sale_month"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169ca6b247e0f0e4cedc_sale_month",
+                "query": {
+                  "datasetName": "discount_corr",
+                  "parameters": [
+                    {
+                      "name": "sale_month",
+                      "keyword": "sale_month"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "sale_month",
+                    "queryName": "dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e6917a051d2589b0421668c27065_sale_month"
+                  },
+                  {
+                    "parameterName": "sale_month",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae1690baaa7ffdde265884_sale_month"
+                  },
+                  {
+                    "parameterName": "sale_month",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae1699a196d2ade0c0124b_sale_month"
+                  },
+                  {
+                    "parameterName": "sale_month",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae1699a63ff293f12e5874_sale_month"
+                  },
+                  {
+                    "parameterName": "sale_month",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169a867a230491d88adc_sale_month"
+                  },
+                  {
+                    "parameterName": "sale_month",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169ab2d7fc04f14d1d3c_sale_month"
+                  },
+                  {
+                    "parameterName": "sale_month",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169bace618213265a9e0_sale_month"
+                  },
+                  {
+                    "parameterName": "sale_month",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169ca6b247e0f0e4cedc_sale_month"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Sale month"
+                }
+              },
+              "version": 2,
+              "widgetType": "filter-multi-select"
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 0,
+            "width": 4,
+            "height": 2
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_GLOBAL_FILTERS",
+      "layoutVersion": "GRID_V1"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    },
+    "applyModeEnabled": false
+  }
+}

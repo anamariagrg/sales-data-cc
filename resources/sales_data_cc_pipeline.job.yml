@@ -1,0 +1,90 @@
+resources:
+  jobs:
+    sales_data_cc_pipeline:
+      name: sales_data_cc_pipeline
+      tasks:
+        - task_key: setup
+          disable_auto_optimization: false
+          disabled: false
+          email_notifications: {}
+          environment_key: Default
+          max_retries: 1
+          min_retry_interval_millis: 0
+          notebook_task:
+            notebook_path: ../src/00_setup.py
+            source: WORKSPACE
+          retry_on_timeout: false
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: bronze
+          depends_on:
+            - task_key: setup
+          disable_auto_optimization: false
+          disabled: false
+          email_notifications: {}
+          environment_key: Default
+          max_retries: 1
+          min_retry_interval_millis: 0
+          notebook_task:
+            notebook_path: ../src/01_bronze_ingestion.py
+            source: WORKSPACE
+          retry_on_timeout: false
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: silver
+          depends_on:
+            - task_key: bronze
+          disable_auto_optimization: false
+          disabled: false
+          email_notifications: {}
+          environment_key: Default
+          max_retries: 1
+          min_retry_interval_millis: 0
+          notebook_task:
+            notebook_path: ../src/02_silver_transform.py
+            source: WORKSPACE
+          retry_on_timeout: false
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: gold
+          depends_on:
+            - task_key: silver
+          disable_auto_optimization: false
+          disabled: false
+          email_notifications: {}
+          environment_key: Default
+          max_retries: 1
+          min_retry_interval_millis: 0
+          notebook_task:
+            notebook_path: ../src/03_gold_aggregations.py
+            source: WORKSPACE
+          retry_on_timeout: false
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+      parameters:
+        - name: catalog
+          default: sales_data_cc
+        - name: load_mode
+          default: delta
+        - name: volume_name
+          default: raw_files
+      email_notifications:
+        no_alert_for_skipped_runs: false
+      environments:
+        - environment_key: Default
+          spec:
+            environment_version: "6"
+      max_concurrent_runs: 1
+      performance_target: PERFORMANCE_OPTIMIZED
+      queue:
+        enabled: true
+      timeout_seconds: 0
+      trigger:
+        file_arrival:
+          url: /Volumes/sales_data_cc/landing/raw_files/
+        pause_status: UNPAUSED
+      webhook_notifications: {}

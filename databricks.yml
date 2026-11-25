@@ -1,0 +1,32 @@
+# Declarative Automation Bundle configuration, more info here: https://docs.databricks.com/en/dev-tools/bundles/settings.html
+bundle:
+  name: "coding-challenge-bundle"
+
+include:
+  - resources/*.yml
+  - resources/*/*.yml
+
+targets:
+  # The 'dev' target, for development purposes. This target is the default.
+  dev:
+    # No 'mode: development' on purpose: this target manages the live,
+    # single-copy resources (bound via `bundle generate --bind`). Development
+    # mode would rename every resource with a "[dev <user>]" prefix and pause
+    # triggers on each deploy, which we don't want for bound live resources.
+    # The job's file-arrival trigger stays armed via pause_status: UNPAUSED set
+    # explicitly in resources/sales_data_cc_pipeline.job.yml.
+    default: true
+    workspace:
+      host: https://dbc-0d7ce7d9-b8fc.cloud.databricks.com
+
+  # The 'prod' target, used for production deployment.
+  prod:
+    mode: production
+    workspace:
+      host: https://dbc-0d7ce7d9-b8fc.cloud.databricks.com
+      # We always use /Users/georgescuanamaria2005@gmail.com for all resources to make sure we only have a single copy.
+      root_path: /Users/georgescuanamaria2005@gmail.com/.bundle/${bundle.name}/${bundle.target}
+    run_as:
+      # This runs as georgescuanamaria2005@gmail.com in production. We could also use a service principal here,
+      # see https://docs.databricks.com/dev-tools/bundles/permissions.html.
+      user_name: georgescuanamaria2005@gmail.com

@@ -1,0 +1,1078 @@
+{
+  "datasets": [
+    {
+      "name": "perf_summary",
+      "displayName": "Task 2 - Performance Summary",
+      "queryLines": [
+        "SELECT `performance_group`, `product_count`, `total_pieces_sold`, `average_pieces_per_product`, `minimum_pieces_per_product`, `maximum_pieces_per_product`, `average_catalog_list_price`, `median_catalog_list_price`\n",
+        "FROM sales_data_cc.gold.task2_performance_summary\n",
+        "ORDER BY `performance_group`"
+      ]
+    },
+    {
+      "name": "attribute_deltas",
+      "displayName": "Task 2 - Top 10% vs Bottom 10% Attribute Deltas",
+      "queryLines": [
+        "SELECT `attribute_name`, `attribute_value`, `top_10_percent_product_count`, `top_10_percent_share_of_group`, `bottom_10_percent_product_count`, `bottom_10_percent_share_of_group`, `share_delta_percentage_points`, `skews_towards`\n",
+        "FROM sales_data_cc.gold.task2_top_10_vs_bottom_10_attribute_deltas\n",
+        "ORDER BY ABS(`share_delta_percentage_points`) DESC, `attribute_name`, `attribute_value`"
+      ]
+    },
+    {
+      "name": "attribute_deltas_above_1_percentage_point",
+      "displayName": "Task 2 - Attribute Deltas Above 1 Percentage Point",
+      "queryLines": [
+        "SELECT CONCAT(`attribute_name`, ' = ', `attribute_value`) AS `attribute_label`, `attribute_name`, `attribute_value`, `top_10_percent_share_of_group`, `bottom_10_percent_share_of_group`, `share_delta_percentage_points`, `skews_towards`\n",
+        "FROM sales_data_cc.gold.task2_top_10_vs_bottom_10_attribute_deltas\n",
+        "WHERE ABS(`share_delta_percentage_points`) >= 1\n",
+        "ORDER BY ABS(`share_delta_percentage_points`) DESC"
+      ]
+    },
+    {
+      "name": "timing_summary",
+      "displayName": "Task 2 - Sales Timing Summary",
+      "queryLines": [
+        "SELECT `performance_group`, `product_count`, `average_active_sale_months_per_product`, `share_of_products_selling_in_a_single_month`, `share_of_products_selling_in_all_sale_months` AS `share_of_products_selling_in_all_eleven_months`, `average_pieces_sold_per_active_month`, `in_season_share_of_group_pieces`\n",
+        "FROM sales_data_cc.gold.task2_sales_timing_summary\n",
+        "ORDER BY `performance_group`"
+      ]
+    },
+    {
+      "name": "month_share_deltas",
+      "displayName": "Task 2 - Monthly Share Deltas (Top 10% vs Bottom 10%)",
+      "queryLines": [
+        "SELECT `sale_month`, `top_10_percent_share_of_group`, `bottom_10_percent_share_of_group`, `share_delta_percentage_points`, `skews_towards`\n",
+        "FROM sales_data_cc.gold.task2_month_share_deltas\n",
+        "ORDER BY `sale_month`"
+      ]
+    },
+    {
+      "name": "activity_breadth",
+      "displayName": "Task 2 - Activity Breadth by Performance Group",
+      "queryLines": [
+        "SELECT `performance_group`, `active_sale_months_tier`, `product_count`, `share_of_group`\n",
+        "FROM sales_data_cc.gold.task2_activity_breadth_by_group\n",
+        "ORDER BY `performance_group`, `active_sale_months_tier`"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "best_vs_worst_page",
+      "displayName": "Top 10% vs Bottom 10% Products",
+      "layout": [
+        {
+          "widget": {
+            "name": "counter_top_10_percent_products",
+            "queries": [
+              {
+                "name": "main",
+                "query": {
+                  "datasetName": "perf_summary",
+                  "fields": [
+                    {
+                      "name": "top_10_percent_products",
+                      "expression": "SUM(`product_count`)"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`performance_group` IN ('top 10%')"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main"
+              },
+              "encodings": {
+                "value": {
+                  "displayName": "Products in the top 10% by lifetime pieces sold",
+                  "fieldName": "top_10_percent_products",
+                  "format": {
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Top 10% sellers — product count"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "counter_bottom_10_percent_products",
+            "queries": [
+              {
+                "name": "main",
+                "query": {
+                  "datasetName": "perf_summary",
+                  "fields": [
+                    {
+                      "name": "bottom_10_percent_products",
+                      "expression": "SUM(`product_count`)"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`performance_group` IN ('bottom 10%')"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main"
+              },
+              "encodings": {
+                "value": {
+                  "displayName": "Products in the bottom 10% by lifetime pieces sold",
+                  "fieldName": "bottom_10_percent_products",
+                  "format": {
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Bottom 10% sellers — product count"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 0,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "counter_top_10_percent_pieces_per_product",
+            "queries": [
+              {
+                "name": "main",
+                "query": {
+                  "datasetName": "perf_summary",
+                  "fields": [
+                    {
+                      "name": "average_pieces_top_10_percent",
+                      "expression": "AVG(`average_pieces_per_product`)"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`performance_group` IN ('top 10%')"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main"
+              },
+              "encodings": {
+                "value": {
+                  "displayName": "Pieces per product (group average)",
+                  "fieldName": "average_pieces_top_10_percent",
+                  "format": {
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Average pieces per top-10% product"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 0,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "counter_bottom_10_percent_pieces_per_product",
+            "queries": [
+              {
+                "name": "main",
+                "query": {
+                  "datasetName": "perf_summary",
+                  "fields": [
+                    {
+                      "name": "average_pieces_bottom_10_percent",
+                      "expression": "AVG(`average_pieces_per_product`)"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`performance_group` IN ('bottom 10%')"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main"
+              },
+              "encodings": {
+                "value": {
+                  "displayName": "Pieces per product (group average)",
+                  "fieldName": "average_pieces_bottom_10_percent",
+                  "format": {
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "places": 1,
+                      "type": "max"
+                    },
+                    "type": "number-plain"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Average pieces per bottom-10% product"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          },
+          "position": {
+            "x": 9,
+            "y": 0,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "perf_summary_table",
+            "queries": [
+              {
+                "name": "main",
+                "query": {
+                  "datasetName": "perf_summary",
+                  "fields": [
+                    {
+                      "name": "performance_group",
+                      "expression": "`performance_group`"
+                    },
+                    {
+                      "name": "product_count",
+                      "expression": "`product_count`"
+                    },
+                    {
+                      "name": "total_pieces_sold",
+                      "expression": "`total_pieces_sold`"
+                    },
+                    {
+                      "name": "average_pieces_per_product",
+                      "expression": "`average_pieces_per_product`"
+                    },
+                    {
+                      "name": "minimum_pieces_per_product",
+                      "expression": "`minimum_pieces_per_product`"
+                    },
+                    {
+                      "name": "maximum_pieces_per_product",
+                      "expression": "`maximum_pieces_per_product`"
+                    },
+                    {
+                      "name": "average_catalog_list_price",
+                      "expression": "`average_catalog_list_price`"
+                    },
+                    {
+                      "name": "median_catalog_list_price",
+                      "expression": "`median_catalog_list_price`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main"
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "displayName": "Group",
+                    "fieldName": "performance_group"
+                  },
+                  {
+                    "displayName": "Products",
+                    "fieldName": "product_count"
+                  },
+                  {
+                    "displayName": "Total pieces",
+                    "fieldName": "total_pieces_sold"
+                  },
+                  {
+                    "displayName": "Avg pieces/product",
+                    "fieldName": "average_pieces_per_product"
+                  },
+                  {
+                    "displayName": "Min pieces/product",
+                    "fieldName": "minimum_pieces_per_product"
+                  },
+                  {
+                    "displayName": "Max pieces/product",
+                    "fieldName": "maximum_pieces_per_product"
+                  },
+                  {
+                    "displayName": "Avg list price",
+                    "fieldName": "average_catalog_list_price"
+                  },
+                  {
+                    "displayName": "Median list price",
+                    "fieldName": "median_catalog_list_price"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Performance summary (top 10% / middle 80% / bottom 10% by lifetime pieces sold)"
+              },
+              "version": 2,
+              "widgetType": "table"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 12,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "month_delta_bar",
+            "queries": [
+              {
+                "name": "main",
+                "query": {
+                  "datasetName": "month_share_deltas",
+                  "fields": [
+                    {
+                      "name": "sale_month",
+                      "expression": "`sale_month`"
+                    },
+                    {
+                      "name": "share_delta",
+                      "expression": "`share_delta_percentage_points`"
+                    },
+                    {
+                      "name": "skews_towards",
+                      "expression": "`skews_towards`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main"
+              },
+              "encodings": {
+                "color": {
+                  "displayName": "Skews towards",
+                  "fieldName": "skews_towards",
+                  "scale": {
+                    "mappings": [
+                      {
+                        "color": "#3A9D5D",
+                        "value": "top 10%"
+                      },
+                      {
+                        "color": "#C0392B",
+                        "value": "bottom 10%"
+                      }
+                    ],
+                    "type": "categorical"
+                  }
+                },
+                "x": {
+                  "displayName": "Sale month",
+                  "fieldName": "sale_month",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Share delta (pp, top minus bottom)",
+                  "fieldName": "share_delta",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Monthly share delta: top 10% vs bottom 10% (percentage points) — no month separates the deciles"
+              },
+              "mark": {
+                "layout": "group"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 7,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "timing_summary_table",
+            "queries": [
+              {
+                "name": "main",
+                "query": {
+                  "datasetName": "timing_summary",
+                  "fields": [
+                    {
+                      "name": "performance_group",
+                      "expression": "`performance_group`"
+                    },
+                    {
+                      "name": "product_count",
+                      "expression": "`product_count`"
+                    },
+                    {
+                      "name": "average_active_sale_months_per_product",
+                      "expression": "`average_active_sale_months_per_product`"
+                    },
+                    {
+                      "name": "share_of_products_selling_in_a_single_month",
+                      "expression": "`share_of_products_selling_in_a_single_month`"
+                    },
+                    {
+                      "name": "share_of_products_selling_in_all_eleven_months",
+                      "expression": "`share_of_products_selling_in_all_eleven_months`"
+                    },
+                    {
+                      "name": "average_pieces_sold_per_active_month",
+                      "expression": "`average_pieces_sold_per_active_month`"
+                    },
+                    {
+                      "name": "in_season_share_of_group_pieces",
+                      "expression": "`in_season_share_of_group_pieces`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main"
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "displayName": "Group",
+                    "fieldName": "performance_group"
+                  },
+                  {
+                    "displayName": "Products",
+                    "fieldName": "product_count"
+                  },
+                  {
+                    "displayName": "Avg active sale months",
+                    "fieldName": "average_active_sale_months_per_product"
+                  },
+                  {
+                    "displayName": "Share selling in 1 month",
+                    "fieldName": "share_of_products_selling_in_a_single_month"
+                  },
+                  {
+                    "displayName": "Share selling in all 11 months",
+                    "fieldName": "share_of_products_selling_in_all_eleven_months"
+                  },
+                  {
+                    "displayName": "Avg pieces per active month",
+                    "fieldName": "average_pieces_sold_per_active_month"
+                  },
+                  {
+                    "displayName": "In-season share of pieces",
+                    "fieldName": "in_season_share_of_group_pieces"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Sales timing by group — consistency (months with sales) vs intensity (pieces per active month)"
+              },
+              "version": 2,
+              "widgetType": "table"
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 7,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "activity_breadth_bar",
+            "queries": [
+              {
+                "name": "main",
+                "query": {
+                  "datasetName": "activity_breadth",
+                  "fields": [
+                    {
+                      "name": "performance_group",
+                      "expression": "`performance_group`"
+                    },
+                    {
+                      "name": "active_sale_months_tier",
+                      "expression": "`active_sale_months_tier`"
+                    },
+                    {
+                      "name": "share_of_group",
+                      "expression": "`share_of_group`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main"
+              },
+              "encodings": {
+                "color": {
+                  "displayName": "Months with sales",
+                  "fieldName": "active_sale_months_tier",
+                  "scale": {
+                    "mappings": [
+                      {
+                        "color": "#C0392B",
+                        "value": "1 month"
+                      },
+                      {
+                        "color": "#E67E22",
+                        "value": "2 to 5 months"
+                      },
+                      {
+                        "color": "#F1C40F",
+                        "value": "6 to 10 months"
+                      },
+                      {
+                        "color": "#3A9D5D",
+                        "value": "all 11 months"
+                      }
+                    ],
+                    "type": "categorical"
+                  }
+                },
+                "x": {
+                  "displayName": "Group",
+                  "fieldName": "performance_group",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Share of group's products",
+                  "fieldName": "share_of_group",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Activity breadth: share of each group's products by months with sales — the decile cut largely follows activity breadth"
+              },
+              "mark": {
+                "layout": "stack"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 13,
+            "width": 12,
+            "height": 6
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "attribute_patterns_page",
+      "displayName": "Attribute Patterns",
+      "layout": [
+        {
+          "widget": {
+            "name": "origin_delta_bar",
+            "queries": [
+              {
+                "name": "main",
+                "query": {
+                  "datasetName": "attribute_deltas",
+                  "fields": [
+                    {
+                      "name": "attribute_value",
+                      "expression": "`attribute_value`"
+                    },
+                    {
+                      "name": "share_delta",
+                      "expression": "`share_delta_percentage_points`"
+                    },
+                    {
+                      "name": "skews_towards",
+                      "expression": "`skews_towards`"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`attribute_name` IN ('origin')"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main"
+              },
+              "encodings": {
+                "color": {
+                  "displayName": "Skews towards",
+                  "fieldName": "skews_towards",
+                  "scale": {
+                    "mappings": [
+                      {
+                        "color": "#3A9D5D",
+                        "value": "top 10%"
+                      },
+                      {
+                        "color": "#C0392B",
+                        "value": "bottom 10%"
+                      }
+                    ],
+                    "type": "categorical"
+                  }
+                },
+                "x": {
+                  "displayName": "Origin",
+                  "fieldName": "attribute_value",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Share delta (pp, top minus bottom)",
+                  "fieldName": "share_delta",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Origin: share delta between top 10% and bottom 10% sellers (percentage points)"
+              },
+              "mark": {
+                "layout": "group"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "promotion_delta_bar",
+            "queries": [
+              {
+                "name": "main",
+                "query": {
+                  "datasetName": "attribute_deltas",
+                  "fields": [
+                    {
+                      "name": "promotion",
+                      "expression": "`attribute_value`"
+                    },
+                    {
+                      "name": "share_delta",
+                      "expression": "`share_delta_percentage_points`"
+                    },
+                    {
+                      "name": "skews_towards",
+                      "expression": "`skews_towards`"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`attribute_name` IN ('promotion')"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main"
+              },
+              "encodings": {
+                "color": {
+                  "displayName": "Skews towards",
+                  "fieldName": "skews_towards",
+                  "scale": {
+                    "mappings": [
+                      {
+                        "color": "#3A9D5D",
+                        "value": "top 10%"
+                      },
+                      {
+                        "color": "#C0392B",
+                        "value": "bottom 10%"
+                      }
+                    ],
+                    "type": "categorical"
+                  }
+                },
+                "x": {
+                  "displayName": "Promotion",
+                  "fieldName": "promotion",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Share delta (pp, top minus bottom)",
+                  "fieldName": "share_delta",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Promotion: share delta — a weak separator between the deciles"
+              },
+              "mark": {
+                "layout": "group"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 0,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "attribute_delta_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "attribute_deltas",
+                  "fields": [
+                    {
+                      "name": "attribute_name",
+                      "expression": "`attribute_name`"
+                    },
+                    {
+                      "name": "attribute_value",
+                      "expression": "`attribute_value`"
+                    },
+                    {
+                      "name": "top_10_percent_product_count",
+                      "expression": "`top_10_percent_product_count`"
+                    },
+                    {
+                      "name": "top_10_percent_share_of_group",
+                      "expression": "`top_10_percent_share_of_group`"
+                    },
+                    {
+                      "name": "bottom_10_percent_product_count",
+                      "expression": "`bottom_10_percent_product_count`"
+                    },
+                    {
+                      "name": "bottom_10_percent_share_of_group",
+                      "expression": "`bottom_10_percent_share_of_group`"
+                    },
+                    {
+                      "name": "share_delta_percentage_points",
+                      "expression": "`share_delta_percentage_points`"
+                    },
+                    {
+                      "name": "skews_towards",
+                      "expression": "`skews_towards`"
+                    }
+                  ],
+                  "disaggregated": true,
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`attribute_name`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "displayName": "Attribute",
+                    "fieldName": "attribute_name"
+                  },
+                  {
+                    "displayName": "Value",
+                    "fieldName": "attribute_value"
+                  },
+                  {
+                    "displayName": "Top 10% products",
+                    "fieldName": "top_10_percent_product_count"
+                  },
+                  {
+                    "displayName": "Top 10% share of group",
+                    "fieldName": "top_10_percent_share_of_group"
+                  },
+                  {
+                    "displayName": "Bottom 10% products",
+                    "fieldName": "bottom_10_percent_product_count"
+                  },
+                  {
+                    "displayName": "Bottom 10% share of group",
+                    "fieldName": "bottom_10_percent_share_of_group"
+                  },
+                  {
+                    "displayName": "Share delta (pp)",
+                    "fieldName": "share_delta_percentage_points"
+                  },
+                  {
+                    "displayName": "Skews towards",
+                    "fieldName": "skews_towards"
+                  }
+                ],
+                "rowOrder": [
+                  {
+                    "by": "column-reversed",
+                    "field": {
+                      "index": 0
+                    }
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "All attribute deltas (top 10% vs bottom 10%) — weak separators included, shares are within-group"
+                }
+              },
+              "version": 2,
+              "widgetType": "table"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 12,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "attribute_delta_bar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "attribute_deltas_above_1_percentage_point",
+                  "fields": [
+                    {
+                      "name": "skews_towards",
+                      "expression": "`skews_towards`"
+                    },
+                    {
+                      "name": "attribute_label",
+                      "expression": "`attribute_label`"
+                    },
+                    {
+                      "name": "share_delta_percentage_points",
+                      "expression": "`share_delta_percentage_points`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "color": {
+                  "displayName": "Skews towards",
+                  "fieldName": "skews_towards",
+                  "scale": {
+                    "mappings": [
+                      {
+                        "color": "#3A9D5D",
+                        "value": "top 10%"
+                      },
+                      {
+                        "color": "#C0392B",
+                        "value": "bottom 10%"
+                      }
+                    ],
+                    "type": "categorical"
+                  }
+                },
+                "x": {
+                  "displayName": "Attribute = value",
+                  "fieldName": "attribute_label",
+                  "scale": {
+                    "categorySize": {
+                      "number": 20,
+                      "type": "number-of-categories"
+                    },
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Share delta (pp, top minus bottom)",
+                  "fieldName": "share_delta_percentage_points",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Top 10% vs bottom 10% attribute deltas (patterns > 1 percentage point)"
+                }
+              },
+              "mark": {
+                "layout": "group"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 12,
+            "width": 12,
+            "height": 6
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "4e1748e3",
+      "displayName": "Global Filters",
+      "layout": [
+        {
+          "widget": {
+            "name": "4d456652",
+            "spec": {
+              "encodings": {
+                "fields": []
+              },
+              "frame": {
+                "showTitle": true
+              },
+              "version": 2,
+              "widgetType": "filter-multi-select"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_GLOBAL_FILTERS",
+      "layoutVersion": "GRID_V1"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    },
+    "applyModeEnabled": false
+  }
+}
