@@ -55,7 +55,9 @@ Medallion lakehouse: `<catalog>.<layer>.<entity>` (default catalog `sales_data_c
 
 **Orchestration — two Jobs:**
 - **`sales_data_cc_pipeline`** — the real pipeline (`bronze → silver → gold`), triggered
-  automatically by a file-arrival trigger on the landing Volume.
+  by a file-arrival trigger on the landing Volume. Note: the very first run needs a manual
+  **Run now**, since the Volume (and the trigger's monitoring of it) doesn't exist until
+  `sales_data_cc_seed` creates it — see `HOW-TO-RUN.md`.
 - **`sales_data_cc_seed`** — manual-only, simulates an external system dropping CSVs into
   the landing Volume (standing in for whatever real upstream would do this in production).
   Kept as a separate, trigger-less Job so it can write to the Volume without the pipeline's

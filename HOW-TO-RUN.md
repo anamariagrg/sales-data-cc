@@ -14,18 +14,20 @@ This creates/updates both Jobs, both dashboards, and uploads `data/` (the source
 
 ## 2. Run — baseline load
 
-1. **Workflows → `sales_data_cc_seed` → Run now** (default parameters). Copies
+1. **Workflows → `sales_data_cc_seed` → Run now** (default parameters). Seeds
    `data/initial/*.csv` into the landing Volume.
-2. `sales_data_cc_pipeline` has a file-arrival trigger on that Volume, so it starts
-   automatically — no manual run needed. Open **Workflows → `sales_data_cc_pipeline`** and
-   wait for a run to appear (usually within about a minute) and finish.
-3. Open either dashboard under **Dashboards** to see the results.
+2. **Workflows → `sales_data_cc_pipeline` → Run now.** It also has a file-arrival trigger
+   on that Volume, but the Volume doesn't exist until step 1 creates it, so don't rely on
+   the trigger for this first run — run it manually (always safe, every stage rebuilds in
+   full).
+3. Open either dashboard under **Dashboards**.
 
 ## 3. Run — delta load (optional, tests incremental processing)
 
 1. **Workflows → `sales_data_cc_seed` → Run now**, setting parameter
    `seed_delta_files = true`. Copies the small `data/delta/*.csv` batch in addition.
-2. Wait for `sales_data_cc_pipeline` to auto-trigger and finish again (same as above).
+2. **Workflows → `sales_data_cc_pipeline` → Wait a minute or two —
+   the trigger should fire on its own. If not press Run now** again
 3. Open `src/adhoc/delta_processing_check.py` in the workspace and run it manually — it
    confirms the new rows merged into Silver and the bad rows landed in `quarantine.*`
    (expected quarantine reasons: `price_null_or_unparseable`, `conflicting_duplicate_key` ×3,
@@ -35,10 +37,6 @@ This creates/updates both Jobs, both dashboards, and uploads `data/` (the source
    **Product section** / **Product season** filter widgets now offer `KIDS` / `Monsoon` as
    selectable values — new dimensions introduced only by the delta batch's product
    `900001`, which isn't one of the quarantined rows.
-
-If a `sales_data_cc_pipeline` run hasn't started after a couple of minutes (trigger timing
-isn't guaranteed), you can start it yourself with **Run now** — every stage is idempotent/
-rebuilt in full, so this is always safe.
 
 `src/adhoc/profiling_notebook.py` is another standalone notebook (not part of either Job) —
 run it manually for raw-CSV profiling at any point. It always profiles only the original
