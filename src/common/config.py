@@ -1,20 +1,11 @@
 # Databricks notebook source
-# /// script
-# [tool.databricks.environment]
-# environment_version = "6"
-# ///
 # MAGIC %md
-# MAGIC # 00 — Setup
-# MAGIC Configure widgets and create the catalog, layer schemas, and CSV Volume.
-# MAGIC Other notebooks load this setup through `%run`.
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC **Widgets**
-# MAGIC
-# MAGIC Tables use `<catalog>.<layer>.<entity>`; uploaded CSVs live in the `landing` Volume.
-
+# MAGIC # Shared config
+# MAGIC Widgets, catalog/schema/volume provisioning, and path/name helpers common to every
+# MAGIC notebook in the `sales_data_cc_pipeline` Job. Loaded through `%run` by
+# MAGIC `01_bronze_ingestion.py`, `02_silver_transform.py`, and `03_gold_aggregations.py` —
+# MAGIC each gets its own copy of `catalog`/`volume_name`/`load_mode`/`volume_base`/etc. and
+# MAGIC the idempotent `CREATE ... IF NOT EXISTS` statements re-run harmlessly every time.
 # COMMAND ----------
 
 # DBTITLE 1,Widgets & configuration

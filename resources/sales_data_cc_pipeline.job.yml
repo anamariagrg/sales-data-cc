@@ -3,23 +3,7 @@ resources:
     sales_data_cc_pipeline:
       name: sales_data_cc_pipeline
       tasks:
-        - task_key: setup
-          disable_auto_optimization: false
-          disabled: false
-          email_notifications: {}
-          environment_key: Default
-          max_retries: 1
-          min_retry_interval_millis: 0
-          notebook_task:
-            notebook_path: ../src/00_setup.py
-            source: WORKSPACE
-          retry_on_timeout: false
-          run_if: ALL_SUCCESS
-          timeout_seconds: 0
-          webhook_notifications: {}
         - task_key: bronze
-          depends_on:
-            - task_key: setup
           disable_auto_optimization: false
           disabled: false
           email_notifications: {}

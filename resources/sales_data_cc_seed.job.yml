@@ -1,0 +1,38 @@
+resources:
+  jobs:
+    sales_data_cc_seed:
+      name: sales_data_cc_seed
+      tasks:
+        - task_key: seed_landing_volume
+          disable_auto_optimization: false
+          disabled: false
+          email_notifications: {}
+          environment_key: Default
+          max_retries: 1
+          min_retry_interval_millis: 0
+          notebook_task:
+            notebook_path: ../src/seed_landing_volume.py
+            source: WORKSPACE
+          retry_on_timeout: false
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+      parameters:
+        - name: catalog
+          default: sales_data_cc
+        - name: volume_name
+          default: raw_files
+        - name: seed_delta_files
+          default: "false"
+      email_notifications:
+        no_alert_for_skipped_runs: false
+      environments:
+        - environment_key: Default
+          spec:
+            environment_version: "6"
+      max_concurrent_runs: 1
+      performance_target: PERFORMANCE_OPTIMIZED
+      queue:
+        enabled: true
+      timeout_seconds: 0
+      webhook_notifications: {}

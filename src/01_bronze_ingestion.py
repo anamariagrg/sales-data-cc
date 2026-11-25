@@ -9,7 +9,7 @@
 # MAGIC Lands the raw CSVs as Delta tables using Auto Loader (`cloudFiles`), matching files
 # MAGIC by configured filename prefix (e.g. any `product_information*.csv`) in the landing
 # MAGIC Volume via `pathGlobFilter`. Each source is its own stream with a dedicated
-# MAGIC checkpoint/schema directory (see `00_setup`'s `checkpoint_path`/`schema_path`), run
+# MAGIC checkpoint/schema directory (see `common/config`'s `checkpoint_path`/`schema_path`), run
 # MAGIC with `trigger(availableNow=True)` so the notebook processes what's new, then stops.
 # MAGIC Columns stay strings; `_ingested_at`/`_source_file`/`_ingestion_mode`/`_rescued_data`
 # MAGIC lineage columns are added.
@@ -20,7 +20,7 @@
 
 # COMMAND ----------
 
-# MAGIC %run ./00_setup
+# MAGIC %run ./common/config
 
 # COMMAND ----------
 

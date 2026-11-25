@@ -1,0 +1,6 @@
+Product ID,Product Position,Promotion,Product Category,Seasonal,brand,url,name,description,price,currency,terms,section,season,material,origin
+900001,Aisle,No,electronics,No,H&M,https://www.hm.com/us/en/wireless-earbuds-p900001.html,WIRELESS EARBUDS,Compact true-wireless earbuds with charging case and touch controls.,59.99,USD,accessories,KIDS,Monsoon,Plastic,Vietnam
+900002,End-cap,Yes,clothing,No,H&M,https://www.hm.com/us/en/summer-dress-p900002.html,FLORAL SUMMER DRESS,Lightweight floral dress with adjustable straps and side pockets.,34.99,USD,dresses,WOMAN,Summer,Cotton,Portugal
+900003,Aisle,No,clothing,No,Zara,https://www.zara.com/us/en/broken-price-p900003.html,MYSTERY ITEM,Placeholder description for a delta test row with a corrupted price field.,N/A,USD,shirts,MAN,Spring,Cotton,Italy
+700001,Aisle,Yes,clothing,No,Zara,https://www.zara.com/us/en/conflict-item-p700001.html,CONFLICT TEST ITEM,First conflicting version of this delta test row with one price.,45.00,USD,shirts,MAN,Spring,Cotton,Spain
+700001,Aisle,Yes,clothing,No,Zara,https://www.zara.com/us/en/conflict-item-p700001.html,CONFLICT TEST ITEM,Second conflicting version of this delta test row with a different price.,52.50,USD,shirts,MAN,Spring,Cotton,Spain
