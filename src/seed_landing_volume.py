@@ -70,6 +70,7 @@ import os
 _this_notebook_path = (
     dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get()
 )
+_this_notebook_path = f"/Workspace{_this_notebook_path}"
 data_root = f"{os.path.dirname(os.path.dirname(_this_notebook_path))}/data"
 print(f"data_root={data_root}")
 

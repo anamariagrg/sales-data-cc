@@ -13,6 +13,10 @@ resources:
           notebook_task:
             notebook_path: ../src/01_bronze_ingestion.py
             source: WORKSPACE
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              load_mode: "{{job.parameters.load_mode}}"
+              volume_name: "{{job.parameters.volume_name}}"
           retry_on_timeout: false
           run_if: ALL_SUCCESS
           timeout_seconds: 0
@@ -29,6 +33,10 @@ resources:
           notebook_task:
             notebook_path: ../src/02_silver_transform.py
             source: WORKSPACE
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              load_mode: "{{job.parameters.load_mode}}"
+              volume_name: "{{job.parameters.volume_name}}"
           retry_on_timeout: false
           run_if: ALL_SUCCESS
           timeout_seconds: 0
@@ -45,6 +53,8 @@ resources:
           notebook_task:
             notebook_path: ../src/03_gold_aggregations.py
             source: WORKSPACE
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
           retry_on_timeout: false
           run_if: ALL_SUCCESS
           timeout_seconds: 0

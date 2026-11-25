@@ -13,6 +13,10 @@ resources:
           notebook_task:
             notebook_path: ../src/seed_landing_volume.py
             source: WORKSPACE
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              volume_name: "{{job.parameters.volume_name}}"
+              seed_delta_files: "{{job.parameters.seed_delta_files}}"
           retry_on_timeout: false
           run_if: ALL_SUCCESS
           timeout_seconds: 0
