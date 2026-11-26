@@ -466,14 +466,12 @@
       ]
     },
     {
-      "name": "discount_1pct_histogram",
-      "displayName": "Findings - Discount Value Distribution (1% granularity)",
+      "name": "discount_values_histogram",
+      "displayName": "Findings - Discount Value Distribution",
       "queryLines": [
         "-- Gold-only: all values computed from the task1_discount_terms MV.\n",
-        "-- This dataset is the single source for both discount-distribution widgets: the 5%-bucket\n",
-        "-- bar groups this same 1%-granularity data itself, at a coarser width.\n",
         "SELECT\n",
-        "  discount_pct,\n",
+        "  discount * 100 AS discount_pct,\n",
         "  COUNT(DISTINCT CONCAT(product_id, '|', city)) AS row_count\n",
         "FROM\n",
         "  sales_data_cc.gold.task1_discount_terms\n",
@@ -1250,7 +1248,7 @@
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "discount_1pct_histogram",
+                  "datasetName": "discount_values_histogram",
                   "fields": [
                     {
                       "name": "sum(row_count)",
@@ -1487,7 +1485,7 @@
           "position": {
             "x": 0,
             "y": 26,
-            "width": 4,
+            "width": 6,
             "height": 6
           }
         },
@@ -1548,83 +1546,20 @@
             }
           },
           "position": {
-            "x": 4,
+            "x": 6,
             "y": 26,
-            "width": 4,
+            "width": 6,
             "height": 6
           }
         },
         {
           "widget": {
-            "name": "bar_discount_histogram",
+            "name": "bar_discount_values",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "discount_1pct_histogram",
-                  "fields": [
-                    {
-                      "name": "discount_range",
-                      "expression": "CONCAT(LPAD(CAST(FLOOR(`discount_pct` / 5) * 5 AS STRING), 2, '0'), '\u2013', LPAD(CAST(FLOOR(`discount_pct` / 5) * 5 + 5 AS STRING), 2, '0'), '%')"
-                    },
-                    {
-                      "name": "sum(row_count)",
-                      "expression": "SUM(`row_count`)"
-                    }
-                  ],
-                  "disaggregated": false
-                }
-              }
-            ],
-            "spec": {
-              "data": {
-                "queryName": "main_query"
-              },
-              "encodings": {
-                "x": {
-                  "displayName": "Discount interval",
-                  "fieldName": "discount_range",
-                  "scale": {
-                    "sort": {
-                      "by": "natural-order"
-                    },
-                    "type": "categorical"
-                  }
-                },
-                "y": {
-                  "displayName": "Discount rows",
-                  "fieldName": "sum(row_count)",
-                  "scale": {
-                    "type": "quantitative"
-                  }
-                }
-              },
-              "frame": {
-                "showTitle": true,
-                "title": {
-                  "fields": [],
-                  "value": "Discount values by 5% interval (0% separate, 20% included in 15–20%)"
-                }
-              },
-              "version": 3,
-              "widgetType": "bar"
-            }
-          },
-          "position": {
-            "x": 8,
-            "y": 26,
-            "width": 4,
-            "height": 6
-          }
-        },
-        {
-          "widget": {
-            "name": "bar_discount_1pct",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "discount_1pct_histogram",
+                  "datasetName": "discount_values_histogram",
                   "fields": [
                     {
                       "name": "discount_pct",
@@ -1666,7 +1601,7 @@
                 "showTitle": true,
                 "title": {
                   "fields": [],
-                  "value": "Discount values at 1% granularity — synthetic-data signature: a dip exactly at 20%"
+                  "value": "Discount values — synthetic-data signature: a dip exactly at 20%"
                 }
               },
               "version": 3,
@@ -1691,9 +1626,9 @@
                     "## How strong is the real signal?\n",
                     "\n",
                     "* **Quantity per sale is skewed high** (larger purchases are more common) — unlike typical real retail where low quantities dominate, a likely synthetic-data signature.\n",
-                    "* **Discounts cap out at exactly 20%**, and the 1%-granularity chart to the left shows a visible dip right at that 20% mark — another synthetic-data signature, hidden by coarser 5% bucketing.\n",
+                    "* **Discounts cap out at exactly 20%**, and the discount-values chart to the left shows a visible dip right at that 20% mark — another synthetic-data signature.\n",
                     "* **Discounts don't move demand**: correlation between discount size and pieces sold is ≈ 0 (0.0018 in the current selection, 0.0024 across the full year).\n",
-                    "* **Weekday spread is small once normalized**: pieces sold *per day* by weekday differ by only ~2% — the un-normalized total (raw pieces per weekday) looked like a 12.9% spread purely because Jan–Feb has more Fridays than Sundays.\n"
+                    "* **Weekday spread is small**: pieces sold *per day* by weekday differ by only ~2%.\n"
                   ]
                 }
               },
@@ -1786,7 +1721,7 @@
           "position": {
             "x": 0,
             "y": 5,
-            "width": 4,
+            "width": 6,
             "height": 3
           }
         },
@@ -1836,9 +1771,9 @@
             }
           },
           "position": {
-            "x": 4,
+            "x": 6,
             "y": 5,
-            "width": 4,
+            "width": 6,
             "height": 3
           }
         },
@@ -2053,7 +1988,7 @@
               {
                 "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169dbdc74f1d1c1pct01_product_section",
                 "query": {
-                  "datasetName": "discount_1pct_histogram",
+                  "datasetName": "discount_values_histogram",
                   "parameters": [
                     {
                       "name": "product_section",
@@ -2225,7 +2160,7 @@
               {
                 "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169dbdc74f1d1c1pct01_product_season",
                 "query": {
-                  "datasetName": "discount_1pct_histogram",
+                  "datasetName": "discount_values_histogram",
                   "parameters": [
                     {
                       "name": "product_season",
@@ -2397,7 +2332,7 @@
               {
                 "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169dbdc74f1d1c1pct01_sale_month",
                 "query": {
-                  "datasetName": "discount_1pct_histogram",
+                  "datasetName": "discount_values_histogram",
                   "parameters": [
                     {
                       "name": "sale_month",

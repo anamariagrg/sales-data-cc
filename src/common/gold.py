@@ -143,11 +143,10 @@ def task1_discount_terms_sql(
     silver_discounts: str, silver_products: str, silver_sales: str
 ) -> str:
     """One row per (product_id, city, sale_month-or-NULL) discount term: the
-    product's section/season, its raw discount and 1%-granularity discount_pct, and
+    product's section/season, its raw discount, and
     the calendar sale month it was sold in (NULL when that product/city pair never
-    sold). The single source for both of the dashboard's discount-distribution
-    widgets; they bucket this 1%-granularity grain into 5% buckets themselves at
-    query time rather than reading a second, near-duplicate aggregate."""
+    sold). Backs the dashboard's exact-value discount distribution and
+    maximum-discount counter."""
     return f"""
     SELECT
         d.product_id,
@@ -155,7 +154,6 @@ def task1_discount_terms_sql(
         p.section,
         p.season,
         d.discount,
-        CAST(ROUND(d.discount * 100) AS INT) AS discount_pct,
         k.sale_month
     FROM {silver_discounts} d
         JOIN {silver_products} p ON d.product_id = p.product_id

@@ -47,7 +47,7 @@
     },
     {
       "name": "lifetime_pieces_mass_points",
-      "displayName": "Task 2 - Lifetime Pieces Mass Points (1-100 range)",
+      "displayName": "Task 2 - Lifetime Pieces Mass Points",
       "queryLines": [
         "SELECT\n",
         "  `total_pieces_sold`,\n",
@@ -58,8 +58,6 @@
         "  END AS value_type\n",
         "FROM\n",
         "  sales_data_cc.gold.task2_product_performance\n",
-        "WHERE\n",
-        "  `total_pieces_sold` BETWEEN 1 AND 100\n",
         "GROUP BY\n",
         "  1,\n",
         "  3\n",
@@ -1057,7 +1055,7 @@
                 "showTitle": true,
                 "title": {
                   "fields": [],
-                  "value": "Lifetime pieces sold (1-100 range) — product counts spike at perfect squares, a synthetic-data signature"
+                  "value": "Lifetime pieces sold — product counts spike at perfect squares, a synthetic-data signature"
                 }
               },
               "version": 3,
@@ -1069,6 +1067,35 @@
             "y": 12,
             "width": 12,
             "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "task2_attribute_patterns_insights",
+            "spec": {
+              "encodings": {
+                "text": {
+                  "fields": [],
+                  "lines": [
+                    "## What the attribute patterns show\n",
+                    "\n",
+                    "* **Lifetime pieces sold is a perfect-square sequence:** all 99 distinct values are squares of 1 through 99 (1 to 9,801), each held by roughly 175–245 products. There are no non-square values in the chart's \"other\" category. This highly artificial distribution is a strong synthetic-data signature, not a typical spread of measured sales volumes.\n",
+                    "* **No individual catalog attribute meaningfully separates the deciles:** across origin, terms, season, section, product position, promotion, seasonal and material, the largest within-group share gap is only 2.7 percentage points (pp).\n",
+                    "* **Activity breadth is the stronger signal:** top-10% products sell in nearly every month, while bottom-10% products sell in few. See **Top 10% vs Bottom 10% Products** for the timing analysis. \n",
+                    "* **Raw extremes are also degenerate: 201 products tie at 1 piece and 202 at 9,801, consistent with the square construction.\n"
+                  ]
+                }
+              },
+              "version": 1,
+              "verticalAlign": "top",
+              "widgetType": "text"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 18,
+            "width": 12,
+            "height": 8
           }
         }
       ],

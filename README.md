@@ -111,8 +111,8 @@ re-declared after.
 
 - `products_sold.csv`/`discount.csv` contain orphan `product_id`s with no match in
   `product_information.csv` — handled by a standing quarantine rule.
-- Discounts cap out at exactly 20%, with a visible dip right at the 20% mark once discount
-  values are charted at 1% granularity (dashboard: *"Discount values at 1% granularity —
+- Discounts cap out at exactly 20%, with a visible dip right at the 20% mark when exact discount
+  values are charted (dashboard: *"Discount values —
   synthetic-data signature: a dip exactly at 20%"*) — a likely synthetic-data signature.
 - Daily sales volume is flat across the 11-month window — no detectable seasonality.
 - Among Task 2 attributes, **Origin shows the largest (but still weak) share gap between
@@ -131,10 +131,8 @@ re-declared after.
 Two patterns in the data look like artifacts of how it was generated rather than real
 retail behavior. Both are now surfaced as dedicated dashboard charts, not just text:
 
-- **Discount cap dip at exactly 20%** — bucketing discount values at 5% width (the
-  original `discount_histogram`) hides this inside a "15–20%" bucket. At 1% granularity
-  (Task 1 dashboard, *"Discount values at 1% granularity"* chart) there's a visible dip
-  right at 20%, the deepest allowed discount.
+- **Discount cap dip at exactly 20%** (Task 1 dashboard, *"Discount values"* chart) 
+- shows a visible dip right at 20%, the deepest allowed discount.
 - **Lifetime-pieces-sold mass points at perfect squares** — product counts spike at
   perfect-square piece totals (201 products tie at 1 piece sold, 201 at 4, 217 at 9, …,
   202 tie at 9,801). Charted for the 1–100 range in the Task 2 dashboard (*"Lifetime pieces

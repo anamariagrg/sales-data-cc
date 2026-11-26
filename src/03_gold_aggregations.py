@@ -66,7 +66,7 @@ silver_discounts = table_name("silver", "discounts")
 # MAGIC counts, use the fact MV.
 # MAGIC
 # MAGIC `sales_data_cc.gold.task1_discount_terms` and `sales_data_cc.gold.task1_filter_options`
-# MAGIC back the discount-distribution widgets and the section/season/sale-month filter
+# MAGIC back the discount distribution and the section/season/sale-month filter
 # MAGIC option lists, so every Task 1 dashboard dataset reads gold only.
 
 # COMMAND ----------
@@ -114,9 +114,9 @@ ensure_materialized_view(
     task1_discount_terms_sql(silver_discounts, silver_products, silver_sales),
     comment=(
         "Task 1: one row per (product_id, city, sale_month-or-NULL) discount term — "
-        "section, season, raw discount, 1%-granularity discount_pct, and the sale "
+        "section, season, raw discount, and the sale "
         "month it was sold in (NULL when that product/city pair never sold). Backs "
-        "both Task 1 discount-distribution dashboard widgets. "
+        "the Task 1 discount distribution and maximum-discount counter. "
         "Materialized view, refreshed on every gold run."
     ),
 )
