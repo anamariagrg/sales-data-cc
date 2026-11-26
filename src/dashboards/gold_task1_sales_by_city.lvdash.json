@@ -131,27 +131,26 @@
       "name": "monthly_rate",
       "displayName": "Findings - Pieces per Day by Month",
       "queryLines": [
+        "-- Gold-only: all values computed from the task1_sales_facts MV.\n",
         "SELECT\n",
-        "  DATE_TRUNC('MONTH', s.sale_ts) AS sale_month,\n",
-        "  COUNT(DISTINCT DATE(s.sale_ts)) AS days_with_data,\n",
-        "  SUM(s.pieces_sold) AS pieces_sold,\n",
-        "  ROUND(SUM(s.pieces_sold) / COUNT(DISTINCT DATE(s.sale_ts)), 0) AS pieces_per_day\n",
+        "  DATE_TRUNC('MONTH', sale_ts) AS sale_month,\n",
+        "  COUNT(DISTINCT DATE(sale_ts)) AS days_with_data,\n",
+        "  SUM(pieces_sold) AS pieces_sold,\n",
+        "  ROUND(SUM(pieces_sold) / COUNT(DISTINCT DATE(sale_ts)), 0) AS pieces_per_day\n",
         "FROM\n",
-        "  sales_data_cc.silver.sales s\n",
-        "    JOIN sales_data_cc.silver.products p\n",
-        "      ON s.product_id = p.product_id\n",
+        "  sales_data_cc.gold.task1_sales_facts\n",
         "WHERE\n",
         "  (\n",
         "    :product_section IS NULL\n",
-        "    OR array_contains(:product_section, p.section)\n",
+        "    OR array_contains(:product_section, section)\n",
         "  )\n",
         "  AND (\n",
         "    :product_season IS NULL\n",
-        "    OR array_contains(:product_season, p.season)\n",
+        "    OR array_contains(:product_season, season)\n",
         "  )\n",
         "  AND (\n",
         "    :sale_month IS NULL\n",
-        "    OR array_contains(:sale_month, s.sale_month)\n",
+        "    OR array_contains(:sale_month, sale_month)\n",
         "  )\n",
         "GROUP BY\n",
         "  1\n",
@@ -216,26 +215,35 @@
       "name": "weekday_pieces",
       "displayName": "Findings - Pieces by Weekday",
       "queryLines": [
+        "-- Gold-only: all values computed from the task1_sales_facts MV.\n",
+        "WITH scoped_sales AS (\n",
+        "  SELECT\n",
+        "    DATE(sale_ts) AS sale_date,\n",
+        "    DATE_FORMAT(sale_ts, 'EEEE') AS day_of_week,\n",
+        "    pieces_sold\n",
+        "  FROM\n",
+        "    sales_data_cc.gold.task1_sales_facts\n",
+        "  WHERE\n",
+        "    (\n",
+        "      :product_section IS NULL\n",
+        "      OR array_contains(:product_section, section)\n",
+        "    )\n",
+        "    AND (\n",
+        "      :product_season IS NULL\n",
+        "      OR array_contains(:product_season, season)\n",
+        "    )\n",
+        "    AND (\n",
+        "      :sale_month IS NULL\n",
+        "      OR array_contains(:sale_month, sale_month)\n",
+        "    )\n",
+        ")\n",
         "SELECT\n",
-        "  DATE_FORMAT(s.sale_ts, 'EEEE') AS day_of_week,\n",
-        "  SUM(s.pieces_sold) AS pieces_sold\n",
+        "  day_of_week,\n",
+        "  SUM(pieces_sold) AS pieces_sold,\n",
+        "  COUNT(DISTINCT sale_date) AS day_occurrences,\n",
+        "  SUM(pieces_sold) / COUNT(DISTINCT sale_date) AS pieces_per_day\n",
         "FROM\n",
-        "  sales_data_cc.silver.sales s\n",
-        "    JOIN sales_data_cc.silver.products p\n",
-        "      ON s.product_id = p.product_id\n",
-        "WHERE\n",
-        "  (\n",
-        "    :product_section IS NULL\n",
-        "    OR array_contains(:product_section, p.section)\n",
-        "  )\n",
-        "  AND (\n",
-        "    :product_season IS NULL\n",
-        "    OR array_contains(:product_season, p.season)\n",
-        "  )\n",
-        "  AND (\n",
-        "    :sale_month IS NULL\n",
-        "    OR array_contains(:sale_month, s.sale_month)\n",
-        "  )\n",
+        "  scoped_sales\n",
         "GROUP BY\n",
         "  1"
       ],
@@ -379,25 +387,24 @@
       "name": "pieces_histogram",
       "displayName": "Findings - pieces_sold Distribution",
       "queryLines": [
+        "-- Gold-only: all values computed from the task1_sales_facts MV.\n",
         "SELECT\n",
-        "  FLOOR(s.pieces_sold / 10) * 10 AS pieces_bucket,\n",
+        "  FLOOR(pieces_sold / 10) * 10 AS pieces_bucket,\n",
         "  COUNT(*) AS sale_rows\n",
         "FROM\n",
-        "  sales_data_cc.silver.sales s\n",
-        "    JOIN sales_data_cc.silver.products p\n",
-        "      ON s.product_id = p.product_id\n",
+        "  sales_data_cc.gold.task1_sales_facts\n",
         "WHERE\n",
         "  (\n",
         "    :product_section IS NULL\n",
-        "    OR array_contains(:product_section, p.section)\n",
+        "    OR array_contains(:product_section, section)\n",
         "  )\n",
         "  AND (\n",
         "    :product_season IS NULL\n",
-        "    OR array_contains(:product_season, p.season)\n",
+        "    OR array_contains(:product_season, season)\n",
         "  )\n",
         "  AND (\n",
         "    :sale_month IS NULL\n",
-        "    OR array_contains(:sale_month, s.sale_month)\n",
+        "    OR array_contains(:sale_month, sale_month)\n",
         "  )\n",
         "GROUP BY\n",
         "  1\n",
@@ -459,67 +466,34 @@
       ]
     },
     {
-      "name": "discount_histogram",
-      "displayName": "Findings - Discount Value Distribution",
+      "name": "discount_1pct_histogram",
+      "displayName": "Findings - Discount Value Distribution (1% granularity)",
       "queryLines": [
-        "WITH sale_keys AS (\n",
-        "  SELECT DISTINCT\n",
-        "    product_id,\n",
-        "    city,\n",
-        "    sale_month\n",
-        "  FROM\n",
-        "    sales_data_cc.silver.sales\n",
-        "),\n",
-        "labelled AS (\n",
-        "  SELECT\n",
-        "    CASE\n",
-        "      WHEN d.discount = 0 THEN 0.0\n",
-        "      ELSE ROUND(FLOOR(d.discount * 20) / 20, 2)\n",
-        "    END AS discount_value,\n",
-        "    CASE\n",
-        "      WHEN d.discount = 0 THEN '0% (exact)'\n",
-        "      ELSE\n",
-        "        CONCAT(\n",
-        "          LPAD(CAST(LEAST(CAST(FLOOR(d.discount * 20) AS INT), 3) * 5 AS STRING), 2, '0'),\n",
-        "          '–',\n",
-        "          LPAD(CAST(LEAST(CAST(FLOOR(d.discount * 20) AS INT), 3) * 5 + 5 AS STRING), 2, '0'),\n",
-        "          '%'\n",
-        "        )\n",
-        "    END AS discount_range,\n",
-        "    CONCAT(d.product_id, '|', d.city) AS product_city\n",
-        "  FROM\n",
-        "    sales_data_cc.silver.discounts d\n",
-        "      JOIN sales_data_cc.silver.products p\n",
-        "        ON d.product_id = p.product_id\n",
-        "      LEFT JOIN sale_keys k\n",
-        "        ON k.product_id = d.product_id\n",
-        "        AND k.city = d.city\n",
-        "  WHERE\n",
-        "    (\n",
-        "      :product_section IS NULL\n",
-        "      OR array_contains(:product_section, p.section)\n",
-        "    )\n",
-        "    AND (\n",
-        "      :product_season IS NULL\n",
-        "      OR array_contains(:product_season, p.season)\n",
-        "    )\n",
-        "    AND (\n",
-        "      :sale_month IS NULL\n",
-        "      OR array_contains(:sale_month, k.sale_month)\n",
-        "    )\n",
-        ")\n",
+        "-- Gold-only: all values computed from the task1_discount_terms MV.\n",
+        "-- This dataset is the single source for both discount-distribution widgets: the 5%-bucket\n",
+        "-- bar groups this same 1%-granularity data itself, at a coarser width.\n",
         "SELECT\n",
-        "  discount_value,\n",
-        "  discount_range,\n",
-        "  COUNT(DISTINCT product_city) AS row_count\n",
+        "  discount_pct,\n",
+        "  COUNT(DISTINCT CONCAT(product_id, '|', city)) AS row_count\n",
         "FROM\n",
-        "  labelled\n",
+        "  sales_data_cc.gold.task1_discount_terms\n",
+        "WHERE\n",
+        "  (\n",
+        "    :product_section IS NULL\n",
+        "    OR array_contains(:product_section, section)\n",
+        "  )\n",
+        "  AND (\n",
+        "    :product_season IS NULL\n",
+        "    OR array_contains(:product_season, season)\n",
+        "  )\n",
+        "  AND (\n",
+        "    :sale_month IS NULL\n",
+        "    OR array_contains(:sale_month, sale_month)\n",
+        "  )\n",
         "GROUP BY\n",
-        "  1,\n",
-        "  2\n",
+        "  1\n",
         "ORDER BY\n",
-        "  1,\n",
-        "  2"
+        "  1"
       ],
       "parameters": [
         {
@@ -668,7 +642,7 @@
             "name": "count"
           }
         ],
-        "source": "SELECT `season` FROM sales_data_cc.silver.products GROUP BY `season` ORDER BY `season`",
+        "source": "SELECT filter_value AS `season` FROM sales_data_cc.gold.task1_filter_options WHERE filter_type = 'season' ORDER BY `season`",
         "version": "1.1"
       }
     },
@@ -689,7 +663,7 @@
             "name": "count"
           }
         ],
-        "source": "SELECT `section` FROM sales_data_cc.silver.products GROUP BY `section` ORDER BY `section`",
+        "source": "SELECT filter_value AS `section` FROM sales_data_cc.gold.task1_filter_options WHERE filter_type = 'section' ORDER BY `section`",
         "version": "1.1"
       }
     },
@@ -710,7 +684,7 @@
             "name": "count"
           }
         ],
-        "source": "SELECT `sale_month` FROM sales_data_cc.silver.sales GROUP BY `sale_month` ORDER BY `sale_month`",
+        "source": "SELECT filter_value AS `sale_month` FROM sales_data_cc.gold.task1_filter_options WHERE filter_type = 'sale_month' ORDER BY `sale_month`",
         "version": "1.1"
       }
     }
@@ -1276,7 +1250,7 @@
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "discount_histogram",
+                  "datasetName": "discount_1pct_histogram",
                   "fields": [
                     {
                       "name": "sum(row_count)",
@@ -1285,7 +1259,7 @@
                   ],
                   "filters": [
                     {
-                      "expression": "`discount_value` IN (0.2)"
+                      "expression": "`discount_pct` IN (20)"
                     }
                   ],
                   "disaggregated": false
@@ -1396,15 +1370,15 @@
                       "expression": "`day_of_week`"
                     },
                     {
-                      "name": "sum(pieces_sold)",
-                      "expression": "SUM(`pieces_sold`)"
+                      "name": "avg(pieces_per_day)",
+                      "expression": "AVG(`pieces_per_day`)"
                     }
                   ],
                   "disaggregated": false,
                   "orders": [
                     {
                       "direction": "DESC",
-                      "expression": "SUM(`pieces_sold`)"
+                      "expression": "AVG(`pieces_per_day`)"
                     }
                   ]
                 }
@@ -1422,15 +1396,15 @@
                     "sort": {
                       "by": "measure-reversed",
                       "measure": {
-                        "fieldName": "sum(pieces_sold)"
+                        "fieldName": "avg(pieces_per_day)"
                       }
                     },
                     "type": "categorical"
                   }
                 },
                 "y": {
-                  "displayName": "Pieces sold",
-                  "fieldName": "sum(pieces_sold)",
+                  "displayName": "Pieces sold per day",
+                  "fieldName": "avg(pieces_per_day)",
                   "scale": {
                     "type": "quantitative"
                   }
@@ -1440,7 +1414,7 @@
                 "showTitle": true,
                 "title": {
                   "fields": [],
-                  "value": "Pieces by weekday - only 2% spread, no weekend spike"
+                  "value": "Pieces per day by weekday - normalized rate, ~2% spread, no weekend spike"
                 }
               },
               "version": 3,
@@ -1587,11 +1561,11 @@
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "discount_histogram",
+                  "datasetName": "discount_1pct_histogram",
                   "fields": [
                     {
                       "name": "discount_range",
-                      "expression": "`discount_range`"
+                      "expression": "CONCAT(LPAD(CAST(FLOOR(`discount_pct` / 5) * 5 AS STRING), 2, '0'), '\u2013', LPAD(CAST(FLOOR(`discount_pct` / 5) * 5 + 5 AS STRING), 2, '0'), '%')"
                     },
                     {
                       "name": "sum(row_count)",
@@ -1639,6 +1613,98 @@
           "position": {
             "x": 8,
             "y": 26,
+            "width": 4,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "bar_discount_1pct",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "discount_1pct_histogram",
+                  "fields": [
+                    {
+                      "name": "discount_pct",
+                      "expression": "`discount_pct`"
+                    },
+                    {
+                      "name": "sum(row_count)",
+                      "expression": "SUM(`row_count`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main_query"
+              },
+              "encodings": {
+                "x": {
+                  "displayName": "Discount (%)",
+                  "fieldName": "discount_pct",
+                  "scale": {
+                    "sort": {
+                      "by": "natural-order"
+                    },
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Discount rows",
+                  "fieldName": "sum(row_count)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "fields": [],
+                  "value": "Discount values at 1% granularity — synthetic-data signature: a dip exactly at 20%"
+                }
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 32,
+            "width": 8,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "task1_signal_header",
+            "spec": {
+              "encodings": {
+                "text": {
+                  "fields": [],
+                  "lines": [
+                    "## How strong is the real signal?\n",
+                    "\n",
+                    "* **Quantity per sale is skewed high** (larger purchases are more common) — unlike typical real retail where low quantities dominate, a likely synthetic-data signature.\n",
+                    "* **Discounts cap out at exactly 20%**, and the 1%-granularity chart to the left shows a visible dip right at that 20% mark — another synthetic-data signature, hidden by coarser 5% bucketing.\n",
+                    "* **Discounts don't move demand**: correlation between discount size and pieces sold is ≈ 0 (0.0018 in the current selection, 0.0024 across the full year).\n",
+                    "* **Weekday spread is small once normalized**: pieces sold *per day* by weekday differ by only ~2% — the un-normalized total (raw pieces per weekday) looked like a 12.9% spread purely because Jan–Feb has more Fridays than Sundays.\n"
+                  ]
+                }
+              },
+              "version": 1,
+              "verticalAlign": "top",
+              "widgetType": "text"
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 32,
             "width": 4,
             "height": 6
           }
@@ -1771,60 +1837,6 @@
           },
           "position": {
             "x": 4,
-            "y": 5,
-            "width": 4,
-            "height": 3
-          }
-        },
-        {
-          "widget": {
-            "name": "counter_avg_products",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "city_sales",
-                  "fields": [
-                    {
-                      "name": "avg(relevant_product_count)",
-                      "expression": "AVG(`relevant_product_count`)"
-                    }
-                  ],
-                  "disaggregated": false
-                }
-              }
-            ],
-            "spec": {
-              "data": {
-                "queryName": "main_query"
-              },
-              "encodings": {
-                "value": {
-                  "displayName": "Avg products per city",
-                  "fieldName": "avg(relevant_product_count)",
-                  "format": {
-                    "abbreviation": "compact",
-                    "decimalPlaces": {
-                      "places": 1,
-                      "type": "max"
-                    },
-                    "type": "number-plain"
-                  }
-                }
-              },
-              "frame": {
-                "showTitle": true,
-                "title": {
-                  "fields": [],
-                  "value": "Avg distinct products sold per city"
-                }
-              },
-              "version": 2,
-              "widgetType": "counter"
-            }
-          },
-          "position": {
-            "x": 8,
             "y": 5,
             "width": 4,
             "height": 3
@@ -2026,9 +2038,9 @@
                 }
               },
               {
-                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169bace618213265a9e0_product_section",
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169ca6b247e0f0e4cedc_product_section",
                 "query": {
-                  "datasetName": "discount_histogram",
+                  "datasetName": "discount_corr",
                   "parameters": [
                     {
                       "name": "product_section",
@@ -2039,9 +2051,9 @@
                 }
               },
               {
-                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169ca6b247e0f0e4cedc_product_section",
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169dbdc74f1d1c1pct01_product_section",
                 "query": {
-                  "datasetName": "discount_corr",
+                  "datasetName": "discount_1pct_histogram",
                   "parameters": [
                     {
                       "name": "product_section",
@@ -2086,6 +2098,10 @@
                   {
                     "parameterName": "product_section",
                     "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169ca6b247e0f0e4cedc_product_section"
+                  },
+                  {
+                    "parameterName": "product_section",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169dbdc74f1d1c1pct01_product_section"
                   }
                 ]
               },
@@ -2194,9 +2210,9 @@
                 }
               },
               {
-                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169bace618213265a9e0_product_season",
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169ca6b247e0f0e4cedc_product_season",
                 "query": {
-                  "datasetName": "discount_histogram",
+                  "datasetName": "discount_corr",
                   "parameters": [
                     {
                       "name": "product_season",
@@ -2207,9 +2223,9 @@
                 }
               },
               {
-                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169ca6b247e0f0e4cedc_product_season",
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169dbdc74f1d1c1pct01_product_season",
                 "query": {
-                  "datasetName": "discount_corr",
+                  "datasetName": "discount_1pct_histogram",
                   "parameters": [
                     {
                       "name": "product_season",
@@ -2254,6 +2270,10 @@
                   {
                     "parameterName": "product_season",
                     "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169ca6b247e0f0e4cedc_product_season"
+                  },
+                  {
+                    "parameterName": "product_season",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169dbdc74f1d1c1pct01_product_season"
                   }
                 ]
               },
@@ -2362,9 +2382,9 @@
                 }
               },
               {
-                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169bace618213265a9e0_sale_month",
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169ca6b247e0f0e4cedc_sale_month",
                 "query": {
-                  "datasetName": "discount_histogram",
+                  "datasetName": "discount_corr",
                   "parameters": [
                     {
                       "name": "sale_month",
@@ -2375,9 +2395,9 @@
                 }
               },
               {
-                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169ca6b247e0f0e4cedc_sale_month",
+                "name": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169dbdc74f1d1c1pct01_sale_month",
                 "query": {
-                  "datasetName": "discount_corr",
+                  "datasetName": "discount_1pct_histogram",
                   "parameters": [
                     {
                       "name": "sale_month",
@@ -2422,6 +2442,10 @@
                   {
                     "parameterName": "sale_month",
                     "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169ca6b247e0f0e4cedc_sale_month"
+                  },
+                  {
+                    "parameterName": "sale_month",
+                    "queryName": "parameter_dashboards/01f1e4010852139eaffb5d168c5f9f00/datasets/01f1e5d8f4ae169dbdc74f1d1c1pct01_sale_month"
                   }
                 ]
               },

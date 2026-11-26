@@ -19,20 +19,10 @@
       ]
     },
     {
-      "name": "attribute_deltas_above_1_percentage_point",
-      "displayName": "Task 2 - Attribute Deltas Above 1 Percentage Point",
-      "queryLines": [
-        "SELECT CONCAT(`attribute_name`, ' = ', `attribute_value`) AS `attribute_label`, `attribute_name`, `attribute_value`, `top_10_percent_share_of_group`, `bottom_10_percent_share_of_group`, `share_delta_percentage_points`, `skews_towards`\n",
-        "FROM sales_data_cc.gold.task2_top_10_vs_bottom_10_attribute_deltas\n",
-        "WHERE ABS(`share_delta_percentage_points`) >= 1\n",
-        "ORDER BY ABS(`share_delta_percentage_points`) DESC"
-      ]
-    },
-    {
       "name": "timing_summary",
       "displayName": "Task 2 - Sales Timing Summary",
       "queryLines": [
-        "SELECT `performance_group`, `product_count`, `average_active_sale_months_per_product`, `share_of_products_selling_in_a_single_month`, `share_of_products_selling_in_all_sale_months` AS `share_of_products_selling_in_all_eleven_months`, `average_pieces_sold_per_active_month`, `in_season_share_of_group_pieces`\n",
+        "SELECT `performance_group`, `product_count`, `average_active_sale_months_per_product`, `share_of_products_selling_in_a_single_month`, `share_of_products_selling_in_all_sale_months`, `average_pieces_sold_per_active_month`, `in_season_share_of_group_pieces`\n",
         "FROM sales_data_cc.gold.task2_sales_timing_summary\n",
         "ORDER BY `performance_group`"
       ]
@@ -54,6 +44,28 @@
         "FROM sales_data_cc.gold.task2_activity_breadth_by_group\n",
         "ORDER BY `performance_group`, `active_sale_months_tier`"
       ]
+    },
+    {
+      "name": "lifetime_pieces_mass_points",
+      "displayName": "Task 2 - Lifetime Pieces Mass Points (1-100 range)",
+      "queryLines": [
+        "SELECT\n",
+        "  `total_pieces_sold`,\n",
+        "  COUNT(*) AS product_count,\n",
+        "  CASE\n",
+        "    WHEN SQRT(`total_pieces_sold`) = FLOOR(SQRT(`total_pieces_sold`)) THEN 'perfect square'\n",
+        "    ELSE 'other'\n",
+        "  END AS value_type\n",
+        "FROM\n",
+        "  sales_data_cc.gold.task2_product_performance\n",
+        "WHERE\n",
+        "  `total_pieces_sold` BETWEEN 1 AND 100\n",
+        "GROUP BY\n",
+        "  1,\n",
+        "  3\n",
+        "ORDER BY\n",
+        "  1"
+      ]
     }
   ],
   "pages": [
@@ -61,6 +73,123 @@
       "name": "best_vs_worst_page",
       "displayName": "Top 10% vs Bottom 10% Products",
       "layout": [
+        {
+          "widget": {
+            "name": "task2_methodology_header",
+            "spec": {
+              "encodings": {
+                "text": {
+                  "fields": [],
+                  "lines": [
+                    "# How the top 10% / bottom 10% groups are defined\n",
+                    "\n",
+                    "Groups are cut by **percent-rank on lifetime pieces sold**, with ties sharing one rank, not raw min/max — raw values are degenerate (201 products tie at 1 piece sold, 202 tie at 9,801), so a plain extremes split would be meaningless. The resulting groups: **top 10% = 2,011 products**, **middle 80% = 16,059 products**, **bottom 10% = 2,182 products**.\n",
+                    "\n",
+                    "**No catalog attribute separates the deciles by more than ~2.7 percentage points** (origin is the largest gap) — the signal in this data is weak almost everywhere *except* one place: **active selling months**. Top-10% products are associated with selling in nearly every month (99.95% sold in all 11 months); bottom-10% products are associated with selling in very few (4.46 months on average, 10.3% in only one month). That association — not any single attribute — is the strongest pattern this data shows.\n"
+                  ]
+                }
+              },
+              "version": 1,
+              "verticalAlign": "top",
+              "widgetType": "text"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "activity_breadth_bar",
+            "queries": [
+              {
+                "name": "main",
+                "query": {
+                  "datasetName": "activity_breadth",
+                  "fields": [
+                    {
+                      "name": "performance_group",
+                      "expression": "`performance_group`"
+                    },
+                    {
+                      "name": "active_sale_months_tier",
+                      "expression": "`active_sale_months_tier`"
+                    },
+                    {
+                      "name": "share_of_group",
+                      "expression": "`share_of_group`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "data": {
+                "queryName": "main"
+              },
+              "encodings": {
+                "color": {
+                  "displayName": "Active selling months",
+                  "fieldName": "active_sale_months_tier",
+                  "scale": {
+                    "mappings": [
+                      {
+                        "color": "#C0392B",
+                        "value": "1 month"
+                      },
+                      {
+                        "color": "#E67E22",
+                        "value": "2 to 5 months"
+                      },
+                      {
+                        "color": "#F1C40F",
+                        "value": "6 to 10 months"
+                      },
+                      {
+                        "color": "#3A9D5D",
+                        "value": "all 11 months"
+                      }
+                    ],
+                    "type": "categorical"
+                  }
+                },
+                "x": {
+                  "displayName": "Group",
+                  "fieldName": "performance_group",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Share of group's products",
+                  "fieldName": "share_of_group",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Active selling months: share of each group's products by months with sales — top 10% sell almost every month, bottom 10% mostly don't"
+              },
+              "mark": {
+                "layout": "stack"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 5,
+            "width": 12,
+            "height": 6
+          }
+        },
         {
           "widget": {
             "name": "counter_top_10_percent_products",
@@ -112,7 +241,7 @@
           },
           "position": {
             "x": 0,
-            "y": 0,
+            "y": 11,
             "width": 3,
             "height": 3
           }
@@ -168,7 +297,7 @@
           },
           "position": {
             "x": 3,
-            "y": 0,
+            "y": 11,
             "width": 3,
             "height": 3
           }
@@ -224,7 +353,7 @@
           },
           "position": {
             "x": 6,
-            "y": 0,
+            "y": 11,
             "width": 3,
             "height": 3
           }
@@ -280,7 +409,7 @@
           },
           "position": {
             "x": 9,
-            "y": 0,
+            "y": 11,
             "width": 3,
             "height": 3
           }
@@ -381,7 +510,7 @@
           },
           "position": {
             "x": 0,
-            "y": 3,
+            "y": 14,
             "width": 12,
             "height": 4
           }
@@ -462,7 +591,7 @@
           },
           "position": {
             "x": 0,
-            "y": 7,
+            "y": 18,
             "width": 6,
             "height": 6
           }
@@ -493,8 +622,8 @@
                       "expression": "`share_of_products_selling_in_a_single_month`"
                     },
                     {
-                      "name": "share_of_products_selling_in_all_eleven_months",
-                      "expression": "`share_of_products_selling_in_all_eleven_months`"
+                      "name": "share_of_products_selling_in_all_sale_months",
+                      "expression": "`share_of_products_selling_in_all_sale_months`"
                     },
                     {
                       "name": "average_pieces_sold_per_active_month",
@@ -532,8 +661,8 @@
                     "fieldName": "share_of_products_selling_in_a_single_month"
                   },
                   {
-                    "displayName": "Share selling in all 11 months",
-                    "fieldName": "share_of_products_selling_in_all_eleven_months"
+                    "displayName": "Share selling in all sale months",
+                    "fieldName": "share_of_products_selling_in_all_sale_months"
                   },
                   {
                     "displayName": "Avg pieces per active month",
@@ -555,97 +684,8 @@
           },
           "position": {
             "x": 6,
-            "y": 7,
+            "y": 18,
             "width": 6,
-            "height": 6
-          }
-        },
-        {
-          "widget": {
-            "name": "activity_breadth_bar",
-            "queries": [
-              {
-                "name": "main",
-                "query": {
-                  "datasetName": "activity_breadth",
-                  "fields": [
-                    {
-                      "name": "performance_group",
-                      "expression": "`performance_group`"
-                    },
-                    {
-                      "name": "active_sale_months_tier",
-                      "expression": "`active_sale_months_tier`"
-                    },
-                    {
-                      "name": "share_of_group",
-                      "expression": "`share_of_group`"
-                    }
-                  ],
-                  "disaggregated": true
-                }
-              }
-            ],
-            "spec": {
-              "data": {
-                "queryName": "main"
-              },
-              "encodings": {
-                "color": {
-                  "displayName": "Months with sales",
-                  "fieldName": "active_sale_months_tier",
-                  "scale": {
-                    "mappings": [
-                      {
-                        "color": "#C0392B",
-                        "value": "1 month"
-                      },
-                      {
-                        "color": "#E67E22",
-                        "value": "2 to 5 months"
-                      },
-                      {
-                        "color": "#F1C40F",
-                        "value": "6 to 10 months"
-                      },
-                      {
-                        "color": "#3A9D5D",
-                        "value": "all 11 months"
-                      }
-                    ],
-                    "type": "categorical"
-                  }
-                },
-                "x": {
-                  "displayName": "Group",
-                  "fieldName": "performance_group",
-                  "scale": {
-                    "type": "categorical"
-                  }
-                },
-                "y": {
-                  "displayName": "Share of group's products",
-                  "fieldName": "share_of_group",
-                  "scale": {
-                    "type": "quantitative"
-                  }
-                }
-              },
-              "frame": {
-                "showTitle": true,
-                "title": "Activity breadth: share of each group's products by months with sales — the decile cut largely follows activity breadth"
-              },
-              "mark": {
-                "layout": "stack"
-              },
-              "version": 3,
-              "widgetType": "bar"
-            }
-          },
-          "position": {
-            "x": 0,
-            "y": 13,
-            "width": 12,
             "height": 6
           }
         }
@@ -949,27 +989,27 @@
         },
         {
           "widget": {
-            "name": "attribute_delta_bar",
+            "name": "lifetime_pieces_mass_points_bar",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "attribute_deltas_above_1_percentage_point",
+                  "datasetName": "lifetime_pieces_mass_points",
                   "fields": [
                     {
-                      "name": "skews_towards",
-                      "expression": "`skews_towards`"
+                      "name": "total_pieces_sold",
+                      "expression": "`total_pieces_sold`"
                     },
                     {
-                      "name": "attribute_label",
-                      "expression": "`attribute_label`"
+                      "name": "value_type",
+                      "expression": "`value_type`"
                     },
                     {
-                      "name": "share_delta_percentage_points",
-                      "expression": "`share_delta_percentage_points`"
+                      "name": "sum(product_count)",
+                      "expression": "SUM(`product_count`)"
                     }
                   ],
-                  "disaggregated": true
+                  "disaggregated": false
                 }
               }
             ],
@@ -979,36 +1019,35 @@
               },
               "encodings": {
                 "color": {
-                  "displayName": "Skews towards",
-                  "fieldName": "skews_towards",
+                  "displayName": "Value type",
+                  "fieldName": "value_type",
                   "scale": {
                     "mappings": [
                       {
-                        "color": "#3A9D5D",
-                        "value": "top 10%"
+                        "color": "#C0392B",
+                        "value": "perfect square"
                       },
                       {
-                        "color": "#C0392B",
-                        "value": "bottom 10%"
+                        "color": "#8E9AAF",
+                        "value": "other"
                       }
                     ],
                     "type": "categorical"
                   }
                 },
                 "x": {
-                  "displayName": "Attribute = value",
-                  "fieldName": "attribute_label",
+                  "displayName": "Lifetime pieces sold",
+                  "fieldName": "total_pieces_sold",
                   "scale": {
-                    "categorySize": {
-                      "number": 20,
-                      "type": "number-of-categories"
+                    "sort": {
+                      "by": "natural-order"
                     },
                     "type": "categorical"
                   }
                 },
                 "y": {
-                  "displayName": "Share delta (pp, top minus bottom)",
-                  "fieldName": "share_delta_percentage_points",
+                  "displayName": "Product count",
+                  "fieldName": "sum(product_count)",
                   "scale": {
                     "type": "quantitative"
                   }
@@ -1018,11 +1057,8 @@
                 "showTitle": true,
                 "title": {
                   "fields": [],
-                  "value": "Top 10% vs bottom 10% attribute deltas (patterns > 1 percentage point)"
+                  "value": "Lifetime pieces sold (1-100 range) — product counts spike at perfect squares, a synthetic-data signature"
                 }
-              },
-              "mark": {
-                "layout": "group"
               },
               "version": 3,
               "widgetType": "bar"
@@ -1042,29 +1078,7 @@
     {
       "name": "4e1748e3",
       "displayName": "Global Filters",
-      "layout": [
-        {
-          "widget": {
-            "name": "4d456652",
-            "spec": {
-              "encodings": {
-                "fields": []
-              },
-              "frame": {
-                "showTitle": true
-              },
-              "version": 2,
-              "widgetType": "filter-multi-select"
-            }
-          },
-          "position": {
-            "x": 0,
-            "y": 0,
-            "width": 1,
-            "height": 2
-          }
-        }
-      ],
+      "layout": [],
       "pageType": "PAGE_TYPE_GLOBAL_FILTERS",
       "layoutVersion": "GRID_V1"
     }
